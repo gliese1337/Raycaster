@@ -65,6 +65,10 @@
 		var dy = Math.sin(this.direction) * distance;
 		if (map.get(this.x + dx, this.y) <= 0) this.x += dx;
 		if (map.get(this.x, this.y + dy) <= 0) this.y += dy;
+		if(this.x < 0){ this.x += map.size; }
+		if(this.x >= map.size){ this.x -= map.size; }
+		if(this.y < 0){ this.y += map.size; }
+		if(this.y >= map.size){ this.y -= map.size; }
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
@@ -100,81 +104,62 @@
 		}
 	};
 
+	//Get the next intersection from pos in direction dir on gridline dim
+	function intersect(pos, dir, dim){
+		var dp = [],
+			i = pos[dim],
+			dx, dy;
+		
+		dp[dim] = (dir[dim] > 0 ? Math.floor(i + 1) : Math.ceil(i - 1)) - i;
+		dp[1-dim] = dp[dim] * (dir[1-dim] / dir[dim]);
+		
+		dx = dp[0];
+		dy = dp[1];
+		
+		return {
+			pos: [pos[0] + dx, pos[1] + dy],
+			distance: Math.sqrt(dx * dx + dy * dy)
+		};
+	}
+	
 	GameMap.prototype.cast = function(point, angle, range) {
 		var self = this;
-		var sin = Math.sin(angle);
-		var cos = Math.cos(angle);
+		var dir = [Math.cos(angle), Math.sin(angle)];
 
-		// Starting from the player, we find the nearest horizontal and vertical gridlines. We move to whichever is closer and check for a wall (inspect). Then we repeat until we've traced the entire length of each ray.
+		// Find the nearest horizontal and vertical gridlines from the starting point. Move to whichever is closer and check for a wall.
 		
-		var stepX, stepY,
-			dx, dy,
-			x = point.x,
-			y = point.y,
+		var steps = [],
+			pos = [point.x, point.y],
 			height = 0,
 			distance = 0,
 			dim = 0,
 			interval,
 			shading;
 		
-		{
-			dy = (sin > 0 ? Math.floor(y + 1) : Math.ceil(y - 1)) - y;
-			dx = dy * (cos / sin);
-			stepY = {
-				x: x + dx,
-				y: y + dy,
-				distance: Math.sqrt(dx * dx + dy * dy)
-			};
-		}		
+		steps[1] = intersect(pos, dir, 1);
 		
 		do {
+			steps[dim] = intersect(pos, dir, dim);
+			dim  = (steps[0].distance < steps[1].distance)? 0 : 1;
 			
-			if(dim === 0){
-				dx = (cos > 0 ? Math.floor(x + 1) : Math.ceil(x - 1)) - x;
-				dy = dx * (sin / cos);
-				stepX = {
-					x: x + dx,
-					y: y + dy,
-					distance: Math.sqrt(dx * dx + dy * dy)
-				};
-			}else{ //if(dim === 1) {
-				dy = (sin > 0 ? Math.floor(y + 1) : Math.ceil(y - 1)) - y;
-				dx = dy * (cos / sin);
-				stepY = {
-					x: x + dx,
-					y: y + dy,
-					distance: Math.sqrt(dx * dx + dy * dy)
-				};
-			}
-			if(stepX.distance < stepY.distance){
-				dim = 0;
-				x = stepX.x;
-				y = stepX.y;
-				height = inspect(stepX, 0);
-				distance += stepX.distance;
-				stepY.distance -= stepX.distance;
-			}else{
-				dim = 1;
-				x = stepY.x;
-				y = stepY.y;
-				height = inspect(stepY, 1);
-				distance += stepY.distance;
-				stepX.distance -= stepY.distance;
-			}
+			pos = steps[dim].pos;
+			height = inspect(pos, dim);
+			distance += steps[dim].distance;
+			steps[dim === 0 ? 1 : 0].distance -= steps[dim].distance;
 			
 		} while(height === 0 && distance < range);
 		
 		return {
-			x: x, y: y,
+			x: pos[0], y: pos[1],
 			height: height,
 			distance: distance,
-			shading: dim === 0 ? (cos < 0 ? 2 : 0) : (sin < 0 ? 2 : 1)
+			shading: dir[dim] < 0 ? 2 : 1
 		};
 
-		function inspect(step, dim) {
+		function inspect(pos, dim) {
 			return dim === 0
-				?self.get(step.x - (cos < 0 ? 1 : 0), step.y)
-				:self.get(step.x, step.y - (sin < 0 ? 1 : 0));
+				?self.get(pos[0] - (dir[0] < 0 ? 1 : 0), pos[1])
+				:self.get(pos[0], pos[1] - (dir[1] < 0 ? 1 : 0));
 		}
 	};
 
@@ -191,7 +176,7 @@
 		this.spacing = this.width / resolution;
 		this.fov = fov;
 		this.range = 14;
-		this.lightRange = 5;
+		this.lightRange = 10;
 		this.scale = (this.width + this.height) / 1200;
 	}
 
