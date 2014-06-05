@@ -131,7 +131,7 @@
 			m = pos[dim];
 		
 		dp[dim] = (dir[dim] > 0 ? Math.floor(m + 1) : Math.ceil(m - 1)) - m;
-		dp[1-dim] = dp[dim] * (dir[1-dim] / dir[dim]);
+		dp[1-dim] = dp[dim] * (dir[1-dim] / dir[dim]); //TODO: this bit still only works with 2d
 		
 		return {
 			pos: pos.map(function(m,i){ return m + dp[i]; }),
@@ -150,19 +150,19 @@
 			height = 0,
 			distance = 0,
 			dim = 0,
-			interval,
-			shading;
+			step, interval;
 		
 		steps[1] = intersect(pos, dir, 1);
 		
 		do {
 			steps[dim] = intersect(pos, dir, dim);
 			dim  = (steps[0].distance < steps[1].distance)? 0 : 1;
-			
-			pos = steps[dim].pos;
+			step = steps[dim];
+			pos = step.pos;
+			interval = step.distance
+			distance += interval;
+			steps[dim === 0 ? 1 : 0].distance -= interval;
 			height = this.inspect(pos, dir, dim);
-			distance += steps[dim].distance;
-			steps[dim === 0 ? 1 : 0].distance -= steps[dim].distance;
 			
 		} while(height === 0 && distance < range);
 		
@@ -170,7 +170,7 @@
 			pos: pos,
 			height: height,
 			distance: distance,
-			shading: dir[dim] < 0 ? 2 : 1
+			offset: pos[1-dim] - Math.floor(pos[1-dim])
 		};
 	};
 
@@ -226,8 +226,7 @@
 
 		if(ray.height === 0){ return; }
 
-		var offset = ray.pos.reduce(function(a,n){ return a + Math.abs(n % 1); },0);
-		var textureX = Math.floor(texture.width * offset);
+		var textureX = Math.floor(texture.width * ray.offset);
 		var wall = this.project(ray.height, angle, ray.distance);
 		
 		ctx.save();
