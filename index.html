@@ -51,7 +51,8 @@
 	function Player(x, y, direction) {
 		this.x = x;
 		this.y = y;
-		this.speed = 0;
+		this.xspeed = 0;
+		this.yspeed = 0;
 		this.rotation = 0;
 		this.direction = direction;
 	}
@@ -60,13 +61,18 @@
 		this.direction = (this.direction + angle + CIRCLE) % (CIRCLE);
 	};
 
-	Player.prototype.walk = function(distance, map) {
-		var dx = Math.cos(this.direction) * distance;
-		var dy = Math.sin(this.direction) * distance;
-		if (map.get(this.x + dx, this.y) <= 0) this.x += dx;
-		if (map.get(this.x, this.y + dy) <= 0) this.y += dy;
+	Player.prototype.walk = function(seconds, map) {
+		var dx = seconds * this.xspeed;
+		var dy = seconds * this.yspeed;
+		
+		if (map.get([this.x + dx, this.y]) <= 0){ this.x += dx; }
+		else{ this.xspeed = -this.xspeed;}
+		if (map.get([this.x, this.y + dy]) <= 0){ this.y += dy; }
+		else{ this.yspeed = -this.yspeed;}
+		
 		if(this.x < 0){ this.x += map.size; }
 		if(this.x >= map.size){ this.x -= map.size; }
+		
 		if(this.y < 0){ this.y += map.size; }
 		if(this.y >= map.size){ this.y -= map.size; }
 	};
@@ -74,10 +80,16 @@
 	Player.prototype.update = function(controls, map, seconds) {
 		if (controls.left){ this.rotation -= Math.PI/50; }
 		if (controls.right){ this.rotation += Math.PI/50; }
-		if (controls.forward){ this.speed += .1; }
-		if (controls.backward){ this.speed -= .1; }
+		if (controls.forward){
+			this.xspeed += .1*Math.cos(this.direction);
+			this.yspeed += .1*Math.sin(this.direction);
+		}
+		if (controls.backward){
+			this.xspeed -= .1*Math.cos(this.direction);
+			this.yspeed -= .1*Math.sin(this.direction);
+		}
 		this.rotate(this.rotation * seconds);
-		this.walk(this.speed * seconds, map);
+		this.walk(seconds, map);
 	};
 
 	function GameMap(size) {
@@ -88,14 +100,15 @@
 		this.light = 0;
 	}
 
-	GameMap.prototype.get = function(x, y) {
-		x = Math.floor(x);
-		y = Math.floor(y);
-		if(x < 0){ x += this.size; }
-		else if(x >= this.size){ x %= this.size; }
-		if(y < 0){ y += this.size; }
-		else if(y >= this.size){ y %= this.size; }
-		return this.wallGrid[y * this.size + x];
+	GameMap.prototype.get = function(coords) {
+		var i, x,
+			size = this.size,
+			index = 0, mult = 1;
+		for(i = 0; i < coords.length; i++, mult *= size){
+			x = Math.floor(coords[i]) % size;
+			index += (x < 0 ? x + size : x)*mult
+		}
+		return this.wallGrid[index];
 	};
 
 	GameMap.prototype.randomize = function(fraction) {
@@ -103,22 +116,26 @@
 			this.wallGrid[i] = Math.random() < fraction ? 1 : 0;
 		}
 	};
+	
+	GameMap.prototype.inspect = function(pos, dir, dim) {
+		if(dir[dim] < 0){
+			pos = pos.slice(0);
+			pos[dim] = pos[dim] - 1;
+		}
+		return this.get(pos);
+	};
 
 	//Get the next intersection from pos in direction dir on gridline dim
 	function intersect(pos, dir, dim){
 		var dp = [],
-			i = pos[dim],
-			dx, dy;
+			m = pos[dim];
 		
-		dp[dim] = (dir[dim] > 0 ? Math.floor(i + 1) : Math.ceil(i - 1)) - i;
+		dp[dim] = (dir[dim] > 0 ? Math.floor(m + 1) : Math.ceil(m - 1)) - m;
 		dp[1-dim] = dp[dim] * (dir[1-dim] / dir[dim]);
 		
-		dx = dp[0];
-		dy = dp[1];
-		
 		return {
-			pos: [pos[0] + dx, pos[1] + dy],
-			distance: Math.sqrt(dx * dx + dy * dy)
+			pos: pos.map(function(m,i){ return m + dp[i]; }),
+			distance: Math.sqrt(dp.reduce(function(a,n){ return a + n*n; },0))
 		};
 	}
 	
@@ -143,29 +160,18 @@
 			dim  = (steps[0].distance < steps[1].distance)? 0 : 1;
 			
 			pos = steps[dim].pos;
-			height = inspect(pos, dim);
+			height = this.inspect(pos, dir, dim);
 			distance += steps[dim].distance;
 			steps[dim === 0 ? 1 : 0].distance -= steps[dim].distance;
 			
 		} while(height === 0 && distance < range);
 		
 		return {
-			x: pos[0], y: pos[1],
+			pos: pos,
 			height: height,
 			distance: distance,
 			shading: dir[dim] < 0 ? 2 : 1
 		};
-
-		function inspect(pos, dim) {
-			return dim === 0
-				?self.get(pos[0] - (dir[0] < 0 ? 1 : 0), pos[1])
-				:self.get(pos[0], pos[1] - (dir[1] < 0 ? 1 : 0));
-		}
-	};
-
-	GameMap.prototype.update = function(seconds) {
-		//if (this.light > 0) this.light = Math.max(this.light - 10 * seconds, 0);
-		//else if (Math.random() * 5 < seconds) this.light = 2;
 	};
 
 	function Camera(canvas, resolution, fov) {
@@ -175,8 +181,8 @@
 		this.resolution = resolution;
 		this.spacing = this.width / resolution;
 		this.fov = fov;
-		this.range = 14;
-		this.lightRange = 10;
+		this.range = 32;
+		this.lightRange = 16;
 		this.scale = (this.width + this.height) / 1200;
 	}
 
@@ -206,7 +212,7 @@
 		this.ctx.save();
 		for (var column = 0; column < this.resolution; column++) {
 			var angle = this.fov * (column / this.resolution - 0.5);
-			var ray = map.cast(player, player.direction + angle, this.range);
+			var ray = map.cast(player, player.direction + angle, this.height / Math.cos(angle));
 			this.drawColumn(column, ray, angle, map);
 		}
 		this.ctx.restore();
@@ -220,19 +226,20 @@
 
 		if(ray.height === 0){ return; }
 
-		var offset = (ray.x % 1) + (ray.y % 1);
+		var offset = ray.pos.reduce(function(a,n){ return a + Math.abs(n % 1); },0);
 		var textureX = Math.floor(texture.width * offset);
 		var wall = this.project(ray.height, angle, ray.distance);
-
+		
+		ctx.save();
+		
 		ctx.globalAlpha = 1;
 		ctx.drawImage(texture.image, textureX, 0, 1, texture.height, left, wall.top, width, wall.height);
 
 		ctx.fillStyle = '#000000';
-		ctx.globalAlpha = Math.max((ray.distance + ray.shading) / this.lightRange - map.light, 0);
+		ctx.globalAlpha = ray.distance / this.lightRange;
 		ctx.fillRect(left, wall.top, width, wall.height);
 
-		ctx.fillStyle = '#ffffff';
-		ctx.globalAlpha = 0.15;
+		ctx.restore();
 	};
 
 	Camera.prototype.project = function(height, angle, distance) {
@@ -267,7 +274,6 @@
 	var controls = new Controls();
 	var camera = new Camera(display, 320, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
-		map.update(seconds);
 		player.update(controls.states, map, seconds);
 		camera.render(player, map);
 	});
