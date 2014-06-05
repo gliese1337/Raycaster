@@ -48,63 +48,64 @@
 		this.height = height;
 	}
 	  
-	function Player(x, y, direction) {
-		this.x = x;
-		this.y = y;
-		this.xspeed = 0;
-		this.yspeed = 0;
+	function Player(pos, direction) {
+		this.pos = pos;
 		this.rotation = 0;
 		this.direction = direction;
+		this.velocity = pos.map(function(){ return 0; });
 	}
 
 	Player.prototype.rotate = function(angle) {
 		this.direction = (this.direction + angle + CIRCLE) % (CIRCLE);
 	};
 
-	Player.prototype.walk = function(seconds, map) {
-		var dx = seconds * this.xspeed;
-		var dy = seconds * this.yspeed;
+	Player.prototype.translate = function(seconds, map) {
+		var i, pos = this.pos,
+			vel = this.velocity,
+			dp = this.velocity.map(function(c){ return c * seconds; });
 		
-		if (map.get([this.x + dx, this.y]) <= 0){ this.x += dx; }
-		else{ this.xspeed = -this.xspeed;}
-		if (map.get([this.x, this.y + dy]) <= 0){ this.y += dy; }
-		else{ this.yspeed = -this.yspeed;}
-		
-		if(this.x < 0){ this.x += map.size; }
-		if(this.x >= map.size){ this.x -= map.size; }
-		
-		if(this.y < 0){ this.y += map.size; }
-		if(this.y >= map.size){ this.y -= map.size; }
+		for(i = pos.length-1; i >= 0; i--){
+			pos[i] += dp[i];
+			if (map.get(pos) > 0){
+				pos[i] -= dp[i];
+				vel[i] = -vel[i];
+			}
+			//this depends on dp never being bigger than the map size...
+			if(pos[i] < 0){ pos[i] += map.size; }
+			else if(pos[i] >= map.size){ pos[i] -= map.size; }
+		}
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
 		if (controls.left){ this.rotation -= Math.PI/50; }
-		if (controls.right){ this.rotation += Math.PI/50; }
+		else if (controls.right){ this.rotation += Math.PI/50; }
 		if (controls.forward){
-			this.xspeed += .1*Math.cos(this.direction);
-			this.yspeed += .1*Math.sin(this.direction);
+			this.velocity[0] += .1*Math.cos(this.direction);
+			this.velocity[1] += .1*Math.sin(this.direction);
 		}
-		if (controls.backward){
-			this.xspeed -= .1*Math.cos(this.direction);
-			this.yspeed -= .1*Math.sin(this.direction);
+		else if (controls.backward){
+			this.velocity[0] -= .1*Math.cos(this.direction);
+			this.velocity[1] -= .1*Math.sin(this.direction);
 		}
 		this.rotate(this.rotation * seconds);
-		this.walk(seconds, map);
+		this.translate(seconds, map);
 	};
 
-	function GameMap(size) {
+	function GameMap(size, dimensions) {
 		this.size = size;
-		this.wallGrid = new Uint8Array(size * size);
+		this.dimensions = dimensions;
+		this.length = Math.pow(size, dimensions);
+		this.wallGrid = new Uint8Array(this.length);
 		this.skybox = new Bitmap('./deathvalley_panorama.jpg', 4000, 1290);
 		this.wallTexture = new Bitmap('./wall_texture.jpg', 1024, 1024);
-		this.light = 0;
 	}
 
 	GameMap.prototype.get = function(coords) {
 		var i, x,
 			size = this.size,
+			dims = this.dimensions,
 			index = 0, mult = 1;
-		for(i = 0; i < coords.length; i++, mult *= size){
+		for(i = 0; i < dims; i++, mult *= size){
 			x = Math.floor(coords[i]) % size;
 			index += (x < 0 ? x + size : x)*mult
 		}
@@ -112,7 +113,7 @@
 	};
 
 	GameMap.prototype.randomize = function(fraction) {
-		for (var i = 0; i < this.size * this.size; i++) {
+		for (var i = 0; i < this.length; i++) {
 			this.wallGrid[i] = Math.random() < fraction ? 1 : 0;
 		}
 	};
@@ -125,52 +126,70 @@
 		return this.get(pos);
 	};
 
-	//Get the next intersection from pos in direction dir on gridline dim
+	//Get the next intersection from pos in direction dir on dimension dim
 	function intersect(pos, dir, dim){
-		var dp = [],
-			m = pos[dim];
+		var mrun, i, di, dist2 = 0,
+			l = dir.length, npos = [], 
+			d = dir[dim], m = pos[dim];
 		
-		dp[dim] = (dir[dim] > 0 ? Math.floor(m + 1) : Math.ceil(m - 1)) - m;
-		dp[1-dim] = dp[dim] * (dir[1-dim] / dir[dim]); //TODO: this bit still only works with 2d
+		mrun = (d > 0 ? Math.floor(m + 1) : Math.ceil(m - 1)) - m;
+		for(i = 0; i < l; i++){
+			di = mrun * (dir[i] / d);
+			npos[i] = pos[i] + di;
+			dist2 += di*di;
+		}
 		
 		return {
-			pos: pos.map(function(m,i){ return m + dp[i]; }),
-			distance: Math.sqrt(dp.reduce(function(a,n){ return a + n*n; },0))
+			pos: npos,
+			distance: Math.sqrt(dist2)
 		};
 	}
 	
-	GameMap.prototype.cast = function(point, angle, range) {
-		var self = this;
-		var dir = [Math.cos(angle), Math.sin(angle)];
-
+	GameMap.prototype.cast = function(pos, angle, range) {
 		// Find the nearest horizontal and vertical gridlines from the starting point. Move to whichever is closer and check for a wall.
-		
-		var steps = [],
-			pos = [point.x, point.y],
-			height = 0,
+		var i, dims = pos.length,
+			dir = [Math.cos(angle), Math.sin(angle)],
+			steps = [],
+			value = 0,
 			distance = 0,
 			dim = 0,
-			step, interval;
+			step, stepsize;
 		
-		steps[1] = intersect(pos, dir, 1);
+		for(i = 1; i < dims; i++){
+			steps[i] = intersect(pos, dir, i);
+		}
 		
 		do {
+		
+			stepsize = 1/0;
 			steps[dim] = intersect(pos, dir, dim);
-			dim  = (steps[0].distance < steps[1].distance)? 0 : 1;
+			for(i = 0; i < dims; i++){
+				step = steps[i];
+				if(step.distance < stepsize){
+					dim = i;
+					stepsize = step.distance;
+				}
+			}
+			
 			step = steps[dim];
 			pos = step.pos;
-			interval = step.distance
-			distance += interval;
-			steps[dim === 0 ? 1 : 0].distance -= interval;
-			height = this.inspect(pos, dir, dim);
+			value = this.inspect(pos, dir, dim);
 			
-		} while(height === 0 && distance < range);
+			distance += stepsize;
+			for(i = 0; i < dims; i++){
+				//one of these doesn't matter, but
+				//an extra subtract is faster than
+				//a conditional branch
+				steps[i].distance -= stepsize;
+			}
+			
+		} while(value === 0 && distance < range);
 		
 		return {
 			pos: pos,
-			height: height,
+			value: value,
 			distance: distance,
-			offset: pos[1-dim] - Math.floor(pos[1-dim])
+			normal: dim
 		};
 	};
 
@@ -187,11 +206,11 @@
 	}
 
 	Camera.prototype.render = function(player, map) {
-		this.drawSky(player.direction, map.skybox, map.light);
+		this.drawSky(player.direction, map.skybox);
 		this.drawColumns(player, map);
 	};
 
-	Camera.prototype.drawSky = function(direction, sky, ambient) {
+	Camera.prototype.drawSky = function(direction, sky) {
 		var width = this.width * (CIRCLE / this.fov);
 		var left = -width * direction / CIRCLE;
 
@@ -200,11 +219,11 @@
 		if (left < width - this.width) {
 			this.ctx.drawImage(sky.image, left + width, 0, width, this.height);
 		}
-		if (ambient > 0) {
+		//if (ambient > 0) {
 			this.ctx.fillStyle = '#ffffff';
-			this.ctx.globalAlpha = ambient * 0.1;
+			this.ctx.globalAlpha = 0.1;
 			this.ctx.fillRect(0, this.height * 0.5, this.width, this.height * 0.5);
-		}
+		//}
 		this.ctx.restore();
 	};
 
@@ -212,7 +231,7 @@
 		this.ctx.save();
 		for (var column = 0; column < this.resolution; column++) {
 			var angle = this.fov * (column / this.resolution - 0.5);
-			var ray = map.cast(player, player.direction + angle, this.height / Math.cos(angle));
+			var ray = map.cast(player.pos, player.direction + angle, this.height / Math.cos(angle));
 			this.drawColumn(column, ray, angle, map);
 		}
 		this.ctx.restore();
@@ -224,10 +243,11 @@
 		var left = Math.floor(column * this.spacing);
 		var width = Math.ceil(this.spacing);
 
-		if(ray.height === 0){ return; }
+		if(ray.value === 0){ return; }
 
-		var textureX = Math.floor(texture.width * ray.offset);
-		var wall = this.project(ray.height, angle, ray.distance);
+		var offset = ray.pos[1-ray.normal] - Math.floor(ray.pos[1-ray.normal])
+		var textureX = Math.floor(texture.width * offset);
+		var wall = this.project(angle, ray.distance);
 		
 		ctx.save();
 		
@@ -235,16 +255,16 @@
 		ctx.drawImage(texture.image, textureX, 0, 1, texture.height, left, wall.top, width, wall.height);
 
 		ctx.fillStyle = '#000000';
-		ctx.globalAlpha = ray.distance / this.lightRange;
+		ctx.globalAlpha = Math.max(ray.distance / this.lightRange - ray.normal / 2,0);
 		ctx.fillRect(left, wall.top, width, wall.height);
 
 		ctx.restore();
 	};
 
-	Camera.prototype.project = function(height, angle, distance) {
+	Camera.prototype.project = function(angle, distance) {
 		var z = distance * Math.cos(angle);
-		var wallHeight = this.height * height / z;
-		var bottom = this.height / 2 * (1 + 1 / z);
+		var wallHeight = this.height / z;
+		var bottom = (1 / z + 1) * this.height / 2;
 		return {
 			top: bottom - wallHeight,
 			height: wallHeight
@@ -268,10 +288,10 @@
 	};
 
 	var display = document.getElementById('display');
-	var map = new GameMap(32);
-	var player = new Player(15.3, 15.3, Math.PI * 0.3);
+	var map = new GameMap(32, 2);
+	var player = new Player([15.3, 15.3], Math.PI * 0.3);
 	var controls = new Controls();
-	var camera = new Camera(display, 320, Math.PI * 0.4);
+	var camera = new Camera(display, 320, Math.PI * .5);
 	var loop = new GameLoop(function(seconds){
 		player.update(controls.states, map, seconds);
 		camera.render(player, map);
