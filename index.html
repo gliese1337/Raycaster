@@ -54,6 +54,7 @@
 		this.speed = 0;
 		this.rotation = 0;
 		this.direction = direction;
+		this.inclination = 0;
 	}
 
 	Player.prototype.rotate = function(angle) {
@@ -68,10 +69,12 @@
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
-		if (controls.left){ this.rotation -= Math.PI/100; }
-		if (controls.right){ this.rotation += Math.PI/100; }
-		if (controls.forward){ this.speed += .1; }
-		if (controls.backward){ this.speed -= .1; }
+		if (controls.left){ this.rotation -= seconds * Math.PI/50; }
+		if (controls.right){ this.rotation += seconds * Math.PI/50; }
+		if (controls.forward){ this.speed += .2*seconds; }
+		if (controls.backward){ this.speed -= .2*seconds; }
+		//if (controls.forward && this.inclination > -1){ this.inclination -= .2*seconds; }
+		//if (controls.backward && this.inclination < 1){ this.inclination += .2*seconds; }
 		this.rotate(this.rotation * seconds);
 		this.walk(this.speed * seconds, map);
 	};
@@ -189,12 +192,12 @@
 		for (col = 0; col < res; col++) {
 			angle = this.fov * (col / res - 0.5);
 			ray = map.cast(player, player.direction + angle, this.height / Math.cos(angle));
-			this.drawColumn(col, ray, angle, map);
+			this.drawColumn(col, ray, angle, player.inclination, map);
 		}
 		this.ctx.restore();
 	};
 	  
-	Camera.prototype.drawColumn = function(column, ray, angle, map) {
+	Camera.prototype.drawColumn = function(column, ray, angle, inclination, map) {
 		var ctx = this.ctx;
 		var texture = map.wallTexture;
 		var left = Math.floor(column * this.spacing);
@@ -204,7 +207,7 @@
 
 		var offset = ray.dimension === 0 ? ray.y - Math.floor(ray.y) : ray.x - Math.floor(ray.x);
 		var textureX = Math.floor(texture.width * offset);
-		var wall = this.project(angle, ray.distance);
+		var wall = this.project(angle, inclination, ray.distance);
 
 		ctx.globalAlpha = 1;
 		ctx.drawImage(texture.image, textureX, 0, 1, texture.height, left, wall.top, width, wall.height);
@@ -217,12 +220,12 @@
 		ctx.globalAlpha = 0.15;
 	};
 
-	Camera.prototype.project = function(angle, distance) {
+	Camera.prototype.project = function(angle, inclination, distance) {
 		var z = distance * Math.cos(angle);
 		var wallHeight = this.height / z;
-		var bottom = this.height / 2 * (1 + 1 / z);
+		var top = (1 - inclination) * (this.height - wallHeight) / 2;
 		return {
-			top: bottom - wallHeight,
+			top: top,
 			height: wallHeight
 		}; 
 	};
