@@ -68,8 +68,8 @@
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
-		if (controls.left){ this.rotation -= Math.PI/50; }
-		if (controls.right){ this.rotation += Math.PI/50; }
+		if (controls.left){ this.rotation -= Math.PI/100; }
+		if (controls.right){ this.rotation += Math.PI/100; }
 		if (controls.forward){ this.speed += .1; }
 		if (controls.backward){ this.speed -= .1; }
 		this.rotate(this.rotation * seconds);
@@ -101,86 +101,53 @@
 	};
 
 	GameMap.prototype.cast = function(point, angle, range) {
-		var self = this;
 		var sin = Math.sin(angle);
 		var cos = Math.cos(angle);
 
 		// Starting from the player, we find the nearest horizontal and vertical gridlines. We move to whichever is closer and check for a wall (inspect). Then we repeat until we've traced the entire length of each ray.
 		
-		var stepX, stepY,
-			dx, dy,
+		var xdx, xdy, ydx, ydy, 
+			xneg = cos < 0 ? 1 : 0,
+			yneg = sin < 0 ? 1 : 0, 
 			x = point.x,
 			y = point.y,
 			height = 0,
-			distance = 0,
+			distance2 = 0,
 			dim = 0,
-			interval,
-			shading;
-		
-		{
-			dy = (sin > 0 ? Math.floor(y + 1) : Math.ceil(y - 1)) - y;
-			dx = dy * (cos / sin);
-			stepY = {
-				x: x + dx,
-				y: y + dy,
-				distance: Math.sqrt(dx * dx + dy * dy)
-			};
-		}		
+			tan = sin/cos,
+			cotan = cos/sin,
+			cx = Math.abs(cos) > Math.abs(sin),
+			range2 = range*range;
 		
 		do {
 			
-			if(dim === 0){
-				dx = (cos > 0 ? Math.floor(x + 1) : Math.ceil(x - 1)) - x;
-				dy = dx * (sin / cos);
-				stepX = {
-					x: x + dx,
-					y: y + dy,
-					distance: Math.sqrt(dx * dx + dy * dy)
-				};
-			}else{ //if(dim === 1) {
-				dy = (sin > 0 ? Math.floor(y + 1) : Math.ceil(y - 1)) - y;
-				dx = dy * (cos / sin);
-				stepY = {
-					x: x + dx,
-					y: y + dy,
-					distance: Math.sqrt(dx * dx + dy * dy)
-				};
-			}
-			if(stepX.distance < stepY.distance){
+			xdx = (cos > 0 ? Math.floor(x + 1) : Math.ceil(x - 1)) - x;
+			ydy = (sin > 0 ? Math.floor(y + 1) : Math.ceil(y - 1)) - y;
+			
+			xdy = xdx * tan;
+			ydx = ydy * cotan;
+
+			if(cx ? (Math.abs(xdx) < Math.abs(ydx)) : (Math.abs(xdy) < Math.abs(ydy))){
 				dim = 0;
-				x = stepX.x;
-				y = stepX.y;
-				height = inspect(stepX, 0);
-				distance += stepX.distance;
-				stepY.distance -= stepX.distance;
+				x += xdx;
+				y += xdy;
+				height = this.get(x - xneg, y);
 			}else{
 				dim = 1;
-				x = stepY.x;
-				y = stepY.y;
-				height = inspect(stepY, 1);
-				distance += stepY.distance;
-				stepX.distance -= stepY.distance;
+				x += ydx;
+				y += ydy;
+				height = this.get(x, y - yneg);
 			}
-			
-		} while(height === 0 && distance < range);
+			distance2 = (point.x-x)*(point.x-x)+(point.y-y)*(point.y-y);
+		} while(height === 0 && distance2 < range2);
 		
 		return {
 			x: x, y: y,
 			height: height,
-			distance: distance,
+			distance: Math.sqrt(distance2),
+			dimension: dim,
 			shading: dim === 0 ? (cos < 0 ? 2 : 0) : (sin < 0 ? 2 : 1)
 		};
-
-		function inspect(step, dim) {
-			return dim === 0
-				?self.get(step.x - (cos < 0 ? 1 : 0), step.y)
-				:self.get(step.x, step.y - (sin < 0 ? 1 : 0));
-		}
-	};
-
-	GameMap.prototype.update = function(seconds) {
-		//if (this.light > 0) this.light = Math.max(this.light - 10 * seconds, 0);
-		//else if (Math.random() * 5 < seconds) this.light = 2;
 	};
 
 	function Camera(canvas, resolution, fov) {
@@ -190,9 +157,7 @@
 		this.resolution = resolution;
 		this.spacing = this.width / resolution;
 		this.fov = fov;
-		this.range = 14;
-		this.lightRange = 5;
-		this.scale = (this.width + this.height) / 1200;
+		this.lightRange = 20;
 	}
 
 	Camera.prototype.render = function(player, map) {
@@ -218,11 +183,13 @@
 	};
 
 	Camera.prototype.drawColumns = function(player, map) {
+		var res = this.resolution,
+			col, angle, ray;
 		this.ctx.save();
-		for (var column = 0; column < this.resolution; column++) {
-			var angle = this.fov * (column / this.resolution - 0.5);
-			var ray = map.cast(player, player.direction + angle, this.range);
-			this.drawColumn(column, ray, angle, map);
+		for (col = 0; col < res; col++) {
+			angle = this.fov * (col / res - 0.5);
+			ray = map.cast(player, player.direction + angle, this.height / Math.cos(angle));
+			this.drawColumn(col, ray, angle, map);
 		}
 		this.ctx.restore();
 	};
@@ -235,24 +202,24 @@
 
 		if(ray.height === 0){ return; }
 
-		var offset = (ray.x % 1) + (ray.y % 1);
+		var offset = ray.dimension === 0 ? ray.y - Math.floor(ray.y) : ray.x - Math.floor(ray.x);
 		var textureX = Math.floor(texture.width * offset);
-		var wall = this.project(ray.height, angle, ray.distance);
+		var wall = this.project(angle, ray.distance);
 
 		ctx.globalAlpha = 1;
 		ctx.drawImage(texture.image, textureX, 0, 1, texture.height, left, wall.top, width, wall.height);
 
 		ctx.fillStyle = '#000000';
-		ctx.globalAlpha = Math.max((ray.distance + ray.shading) / this.lightRange - map.light, 0);
+		ctx.globalAlpha = (ray.distance + ray.shading) / this.lightRange;
 		ctx.fillRect(left, wall.top, width, wall.height);
 
 		ctx.fillStyle = '#ffffff';
 		ctx.globalAlpha = 0.15;
 	};
 
-	Camera.prototype.project = function(height, angle, distance) {
+	Camera.prototype.project = function(angle, distance) {
 		var z = distance * Math.cos(angle);
-		var wallHeight = this.height * height / z;
+		var wallHeight = this.height / z;
 		var bottom = this.height / 2 * (1 + 1 / z);
 		return {
 			top: bottom - wallHeight,
@@ -282,7 +249,6 @@
 	var controls = new Controls();
 	var camera = new Camera(display, 320, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
-		map.update(seconds);
 		player.update(controls.states, map, seconds);
 		camera.render(player, map);
 	});
