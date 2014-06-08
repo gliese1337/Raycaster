@@ -195,6 +195,7 @@
 	};
 
 	function Camera(canvas, resolution, fov) {
+		var col, scale, angles = new Float32Array(resolution);
 		this.ctx = canvas.getContext('2d');
 		this.width = canvas.width = window.innerWidth * 0.5;
 		this.height = canvas.height = window.innerHeight * 0.5;
@@ -202,6 +203,12 @@
 		this.spacing = this.width / resolution;
 		this.fov = fov;
 		this.lightRange = 20;
+		this.angles = angles;
+		
+		scale = Math.tan(fov/2);
+		for (col = 0; col < resolution; col++) {
+			angles[col] = Math.atan(scale*(col / resolution - 0.5));
+		}
 	}
 
 	Camera.prototype.render = function(player, map) {
@@ -228,10 +235,11 @@
 
 	Camera.prototype.drawColumns = function(player, map) {
 		var res = this.resolution,
+			angles = this.angles,
 			col, angle, ray;
 		this.ctx.save();
 		for (col = 0; col < res; col++) {
-			angle = this.fov * (col / res - 0.5);
+			angle = angles[col];
 			ray = map.cast(player, player.direction + angle, this.height / Math.cos(angle));
 			if(ray.value > 0){ this.drawColumn(col, ray, angle, player.inclination, map); }
 		}
@@ -274,7 +282,7 @@
 	};
 
 	var display = document.getElementById('display');
-	var map = new GameMap(32);
+	var map = new GameMap(64);
 	var player = new Player(.3, .3, Math.PI * 0.3);
 	var controls = new Controls();
 	var camera = new Camera(display, 640, Math.PI * 0.4);
