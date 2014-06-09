@@ -31,7 +31,6 @@ var Maze = (function() {
 
 		nx = rand(width - 1) * 2 + 1;
 		ny = rand(height - 1) * 2 + 1;
-		console.log(ny, nx);
 		grid[ny][nx] = 0;
 		cells = [{x:nx,y:ny}];
 
