@@ -166,23 +166,25 @@
 		xdelta = Math.sqrt(1 + tan*tan);
 		ydelta = Math.sqrt(1 + cot*cot);
 
-		mx = Math.floor(x);
 		if(cos > 0){
 			sx = 1;
+			mx = Math.floor(x);
 			dx = mx + 1 - x;
 		}else{
 			sx = -1;
+			mx = Math.ceil(x - 1);
 			dx = mx - x;
 		}
 		dy = dx * tan;
 		xdist = Math.sqrt(dx*dx + dy*dy);
-		
-		my = Math.floor(y);
+
 		if(sin > 0){
 			sy = 1;
+			my = Math.floor(y);
 			dy = my + 1 - y;
 		}else{
 			sy = -1;
+			my = Math.ceil(y - 1);
 			dy = my - y;
 		}
 		dx = dy * cot;
