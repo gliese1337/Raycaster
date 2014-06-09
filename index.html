@@ -134,25 +134,25 @@
 
 	GameMap.prototype.cast = function(point, vector, range) {
 		"use strict";
-		var cos = vector[0];
-		var sin = vector[1];
+		var xc = vector[0],
+			yc = vector[1],
+			zc = vector[2];
 
 		// Starting from the player, we find the nearest horizontal and vertical gridlines. We move to whichever is closer and check for a wall (inspect). Then we repeat until we've traced the entire length of each ray.
 
-		var mx, my, sx, sy, dx, dy,
-			xdelta, ydelta,
-			xdist, ydist,
+		var mx, my, mz, sx, sy, sz, dx, dy, dz,
+			xdelta, ydelta, zdelta,
+			xdist, ydist, zdist,
 			value, dim,
 			x = point[0],
 			y = point[1],
-			distance = 0,
-			tan = sin/cos,
-			cot = cos/sin;
+			z = 0,
+			distance = 0;
+		
+		xdelta = Math.abs(1/xc);
+		ydelta = Math.abs(1/yc);
 
-		xdelta = Math.abs(1/cos);
-		ydelta = Math.abs(1/sin);
-
-		if(cos > 0){
+		if(xc > 0){
 			sx = 1;
 			mx = Math.floor(x);
 			dx = mx + 1 - x;
@@ -161,10 +161,10 @@
 			mx = Math.ceil(x - 1);
 			dx = mx - x;
 		}
-		dy = dx * tan;
+		dy = dx * yc/xc;
 		xdist = Math.sqrt(dx*dx + dy*dy);
 
-		if(sin > 0){
+		if(yc > 0){
 			sy = 1;
 			my = Math.floor(y);
 			dy = my + 1 - y;
@@ -173,7 +173,7 @@
 			my = Math.ceil(y - 1);
 			dy = my - y;
 		}
-		dx = dy * cot;
+		dx = dy * xc/yc;
 		ydist = Math.sqrt(dx*dx + dy*dy);
 
 		do {
@@ -191,8 +191,8 @@
 			value = this.get(mx, my);
 		} while(value === 0 && distance < range);
 
-		x += distance * cos;
-		y += distance * sin;
+		x += distance * xc;
+		y += distance * yc;
 
 		return {
 			x: x, y: y,
@@ -205,29 +205,38 @@
 
 	function Camera(canvas, resolution, fov) {
 		"use strict";
-		var col, scale, angle, cos,
-			angles = new Float32Array(resolution),
+		var i, scale, angle, cos,
+			width = window.innerWidth * 0.5,
+			height = window.innerHeight * 0.5,
+			thetas = new Float32Array(resolution),
+			phis = new Float32Array(resolution),
 			cosines = new Float32Array(resolution),
 			ranges = new Uint32Array(resolution);
+
 		this.ctx = canvas.getContext('2d');
-		this.width = canvas.width = window.innerWidth * 0.5;
-		this.height = canvas.height = window.innerHeight * 0.5;
+		this.width = canvas.width = width;
+		this.height = canvas.height = height;
 		this.resolution = resolution;
 		this.spacing = this.width / resolution;
 		this.fov = fov;
 		this.lightRange = 20;
-		this.angles = angles;
+		this.thetas = thetas;
+		this.phis = phis;
 		this.cosines = cosines;
 		this.ranges = ranges;
 		this.fps = [];
 
 		scale = Math.tan(fov/2);
-		for (col = 0; col < resolution; col++) {
-			angle = Math.atan(scale*(col / resolution - 0.5));
+		for (i = 0; i < resolution; i++) {
+			angle = Math.atan(scale*(i / resolution - 0.5));
 			cos = Math.cos(angle);
-			angles[col] = angle;
-			cosines[col] = cos;
-			ranges[col] = Math.round(this.height / cos);
+			thetas[i] = angle;
+			cosines[i] = cos;
+			ranges[i] = Math.round(height / cos);
+		}
+		
+		for (i = 0; i < resolution; i++) {
+			phis[i] = Math.atan(scale*(i / resolution - 0.5));
 		}
 	}
 
@@ -265,15 +274,16 @@
 	Camera.prototype.drawColumns = function(player, map) {
 		"use strict";
 		var res = this.resolution,
-			angles = this.angles,
+			thetas = this.thetas,
 			cosines = this.cosines,
 			ranges = this.ranges,
 			height = this.height,
 			dir = player.direction,
-			col, angle, ray;
+			col, angle, p_angle, ray;
+			
 		this.ctx.save();
 		for (col = 0; col < res; col++) {
-			angle = angles[col] + dir;
+			angle = thetas[col] + dir;
 			ray = map.cast([player.x, player.y], [Math.cos(angle), Math.sin(angle)], ranges[col]);
 			if(ray.value > 0){ this.drawColumn(col, ray, cosines[col], map); }
 		}
