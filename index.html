@@ -109,7 +109,7 @@
 		"use strict";
 		var i, len = this.width * this.height;
 		for (var i = 0; i < len; i++) {
-			this.wallGrid[i] = Math.random() < fraction ? Math.floor(Math.random()*256) + 1 : 0;
+			this.wallGrid[i] = Math.random() < fraction ? Math.floor(Math.random()*4096) + 1 : 0;
 		}
 	};
 
@@ -118,7 +118,7 @@
 		var i, j, row,
 			offset = 0,
 			len = this.width * this.height,
-			texture = Math.floor(Math.random()*256) + 1,
+			texture = Math.floor(Math.random()*4096) + 1,
 			maze = Maze(this.width/2,this.height/2);
 		for(i = 0; i < this.height; i++, offset += this.width){
 			row = maze[i];
@@ -146,11 +146,12 @@
 			value, dim,
 			x = point[0],
 			y = point[1],
-			z = 0,
+			z = point[2],
 			distance = 0;
 		
 		xdelta = Math.abs(1/xc);
 		ydelta = Math.abs(1/yc);
+		zdelta = Math.abs(1/zc);
 
 		if(xc > 0){
 			sx = 1;
@@ -162,7 +163,8 @@
 			dx = mx - x;
 		}
 		dy = dx * yc/xc;
-		xdist = Math.sqrt(dx*dx + dy*dy);
+		dz = dx * zc/xc;
+		xdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
 		if(yc > 0){
 			sy = 1;
@@ -174,32 +176,53 @@
 			dy = my - y;
 		}
 		dx = dy * xc/yc;
-		ydist = Math.sqrt(dx*dx + dy*dy);
+		dz = dy * zc/yc;
+		ydist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+		
+		if(zc > 0){
+			sz = 1;
+			mz = Math.floor(y);
+			dz = mz + 1 - z;
+		}else{
+			sz = -1;
+			mz = Math.ceil(z - 1);
+			dz = mz - z;
+		}
+		dx = dz * xc/zc;
+		dy = dz * yc/zc;
+		zdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
 		do {
-			if(xdist < ydist){
+			switch(Math.min(xdist, zdist, ydist)){
+			case xdist:
 				dim = 0;
 				mx += sx;
 				distance = xdist;
 				xdist += xdelta;
-			}else{
+				break;
+			case ydist:
 				dim = 1;
 				my += sy;
 				distance = ydist;
 				ydist += ydelta;
+				break;
+			case zdist:
+				dim = 2;
+				mz += sz;
+				distance = zdist;
+				zdist += zdelta;
 			}
-			value = this.get(mx, my);
+			value = this.get(mx, my, mz);
 		} while(value === 0 && distance < range);
 
-		x += distance * xc;
-		y += distance * yc;
-
 		return {
-			x: x, y: y,
+			x: x + distance * xc,
+			y: y + distance * yc,
+			z: z + distance * zc,
 			vector: vector,
 			dimension: dim,
 			value: value,
-			distance: distance
+			distance: distance,
 		};
 	};
 
@@ -284,13 +307,13 @@
 		this.ctx.save();
 		for (col = 0; col < res; col++) {
 			angle = thetas[col] + dir;
-			ray = map.cast([player.x, player.y], [Math.cos(angle), Math.sin(angle)], ranges[col]);
+			ray = map.cast([player.x, player.y, 0], [Math.cos(angle), Math.sin(angle), 0], ranges[col]);
 			if(ray.value > 0){ this.drawColumn(col, ray, cosines[col], map); }
 		}
 		this.ctx.restore();
 	};
 
-	var shades = [.25,.25,.66,1];
+	var shades = [.25,.25,.66,1,1,1];
 	Camera.prototype.drawColumn = function(column, ray, scale, map) {
 		"use strict";
 		var ctx = this.ctx;
@@ -298,9 +321,9 @@
 		var width = Math.ceil(this.spacing);
 		var value = ray.value - 1; //so we can use the 0 index
 		var dim = ray.dimension;
-		var side = dim + (ray.vector[dim] > 0 ? 0 : 2);
-		var offset = dim === 0 ? ray.y - Math.floor(ray.y) : ray.x - Math.floor(ray.x);
+		var side = dim + (ray.vector[dim] < 0 ? 0 : 3);
 		var texture = map.textures[(value >> (side * 2)) & 3];
+		var offset = dim === 0 || dim === 2 ? ray.y - Math.floor(ray.y) : ray.x - Math.floor(ray.x);
 
 		var wallHeight = this.height / (ray.distance * scale);
 		var top = (this.height - wallHeight) / 2;
