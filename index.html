@@ -66,7 +66,7 @@
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
-		"use strict";
+		var moved = false;
 		if (controls.right){
 			this.rotate(seconds * Math.PI/6);
 		} else if (controls.left){
@@ -118,7 +118,7 @@
 
 	GameMap.prototype.randomize = function(fraction) {
 		"use strict";
-		var i, len = this.zstride;
+		var i, len = this.zstride * this.depth;
 		for (i = 0; i < len; i++) {
 			this.wallGrid[i] = Math.random() < fraction ? Math.floor(Math.random()*4096) + 1 : 0;
 		}
@@ -241,40 +241,45 @@
 		};
 	};
 
-	function Camera(canvas, resolution, fov) {
+	function Camera(canvas, hres, vres, fov) {
 		"use strict";
 		var i, scale, angle, cos,
 			width = window.innerWidth * 0.5,
 			height = window.innerHeight * 0.5,
-			thetas = new Float32Array(resolution),
-			phis = new Float32Array(resolution),
-			cosines = new Float32Array(resolution),
-			ranges = new Uint32Array(resolution);
+			thetas = new Float32Array(hres),
+			phis = new Float32Array(vres),
+			cosines = new Float32Array(hres),
+			ranges = new Uint32Array(hres);
 
 		this.ctx = canvas.getContext('2d');
 		this.width = canvas.width = width;
 		this.height = canvas.height = height;
-		this.resolution = resolution;
-		this.spacing = this.width / resolution;
+		this.hres = hres;
+		this.vres = vres;
+		this.hspacing = width / hres;
+		this.vspacing = height / vres;
 		this.fov = fov;
-		this.lightRange = 20;
+		this.lightRange = 40;
 		this.thetas = thetas;
 		this.phis = phis;
 		this.cosines = cosines;
 		this.ranges = ranges;
 		this.fps = [];
 
+		this.row_cos = new Float32Array(hres);
+		this.row_sin = new Float32Array(hres);
+		
 		scale = Math.tan(fov/2);
-		for (i = 0; i < resolution; i++) {
-			angle = Math.atan(scale*(i / resolution - 0.5));
+		for (i = 0; i < hres; i++) {
+			angle = Math.atan(scale*(i / hres - 0.5));
 			cos = Math.cos(angle);
 			thetas[i] = angle;
 			cosines[i] = cos;
 			ranges[i] = Math.round(height / cos);
 		}
 		
-		for (i = 0; i < resolution; i++) {
-			phis[i] = Math.atan(scale*(i / resolution - 0.5));
+		for (i = 0; i < vres; i++) {
+			phis[i] = Math.atan(scale*(i / vres - 0.5));
 		}
 	}
 
@@ -311,48 +316,80 @@
 
 	Camera.prototype.drawColumns = function(player, map) {
 		"use strict";
-		var res = this.resolution,
+		var hres = this.hres,
+			vres = this.vres,
 			thetas = this.thetas,
-			cosines = this.cosines,
+			phis = this.phis,
 			ranges = this.ranges,
 			height = this.height,
-			theta = player.theta,
-			phi = player.phi,
-			col, angle, pcos, psin, ray;
-		
-		pcos = Math.cos(phi);
-		psin = Math.sin(phi);
+			row_cos = this.row_cos,
+			row_sin = this.row_sin,
+			p_theta = player.theta,
+			p_phi = player.phi,
+			origin = [player.x, player.y, player.z],
+			col, row, theta, phi,
+			tcos, tsin, pcos, ray;
+
+		for (row = 0; row < vres; row++) {
+			phi = phis[row] + p_phi;
+			row_cos[row] = Math.cos(phi);
+			row_sin[row] = Math.sin(phi);
+		}
 		
 		this.ctx.save();
-		for (col = 0; col < res; col++) {
-			angle = thetas[col] + theta;
-			ray = map.cast([player.x, player.y, player.z], [Math.cos(angle)*pcos, Math.sin(angle)*pcos, psin], ranges[col]);
-			if(ray.value > 0){ this.drawColumn(col, ray, cosines[col], map); }
+		for (col = 0; col < hres; col++) {
+			theta = p_theta + thetas[col];
+			tcos = Math.cos(theta);
+			tsin = Math.sin(theta);
+			for (row = 0; row < vres; row++) {
+				pcos = row_cos[row];
+				ray = map.cast(origin, [tcos*pcos, tsin*pcos, row_sin[row]], 10);
+				if(ray.value > 0){ this.drawPixel(col, row, ray, map); }
+			}
 		}
 		this.ctx.restore();
 	};
 
-	var shades = [.25,.25,.66,1,1,1];
-	Camera.prototype.drawColumn = function(column, ray, scale, map) {
+	var shades = [.125,.125,.33,.5,.5,.5];
+	Camera.prototype.drawPixel = function(col, row, ray, map) {
 		"use strict";
 		var ctx = this.ctx;
-		var left = Math.floor(column * this.spacing);
-		var width = Math.ceil(this.spacing);
+		var left = Math.floor(col * this.hspacing);
+		var top = Math.floor(row * this.vspacing);
+		var width = Math.ceil(this.hspacing);
+		var height = Math.ceil(this.vspacing);
 		var value = ray.value - 1; //so we can use the 0 index
 		var dim = ray.dimension;
 		var side = dim + (ray.vector[dim] < 0 ? 0 : 3);
 		var texture = map.textures[(value >> (side * 2)) & 3];
-		var offset = dim === 0 || dim === 2 ? ray.y - Math.floor(ray.y) : ray.x - Math.floor(ray.x);
-
-		var wallHeight = this.height / (ray.distance * scale);
-		var top = (this.height - wallHeight) / 2;
+		var x, y;
+		
+		switch(dim){
+		case 0:
+			x = ray.z;
+			y = ray.y;
+			break;
+		case 1:
+			x = ray.z;
+			y = ray.x;
+			break;
+		case 2:
+			x = ray.x;
+			y = ray.y;
+			break;
+		}
 
 		ctx.globalAlpha = 1;
-		ctx.drawImage(texture.image, texture.width * offset, 0, 1, texture.height, left, top, width, wallHeight);
+		ctx.drawImage(
+			texture.image,
+			texture.width * (x - Math.floor(x)),
+			texture.height * (y - Math.floor(y)), 1, 1,
+			left, top, width, height
+		);
 
 		ctx.fillStyle = '#000000';
-		ctx.globalAlpha = ((ray.distance / this.lightRange) + shades[side]) / 2;
-		ctx.fillRect(left, top, width, wallHeight);
+		ctx.globalAlpha = shades[side];
+		ctx.fillRect(left, top, 1, 1);
 	};
 
 	function GameLoop(body) {
@@ -388,11 +425,14 @@
 	}
 	var player = new Player(px+.5, py+.5, pz+.5, Math.PI * 0.5, 0);
 	var controls = new Controls();
-	var camera = new Camera(display, 640, Math.PI * 0.4);
+	var camera = new Camera(display, 80, 80, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
 		player.update(controls.states, map, seconds);
 		camera.render(player, map, seconds);
 	});
+
+	map.randomize(.125);
+	//map.maze(.05);
 	loop.start();
 
 	//setTimeout(function(){ loop.stop = true; }, 1000);
