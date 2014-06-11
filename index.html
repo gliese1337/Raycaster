@@ -35,10 +35,11 @@
 		this.height = height;
 	}
 
-	function Player(x, y, direction) {
+	function Player(x, y, z, direction) {
 		"use strict";
 		this.x = x;
 		this.y = y;
+		this.z = z;
 		this.rotation = 0;
 		this.speed = 0;
 		this.direction = direction;
@@ -53,8 +54,8 @@
 		"use strict";
 		var dx = Math.cos(this.direction) * distance;
 		var dy = Math.sin(this.direction) * distance;
-		if (map.get(Math.floor(this.x + dx), Math.floor(this.y)) <= 0) this.x += dx;
-		if (map.get(Math.floor(this.x), Math.floor(this.y + dy)) <= 0) this.y += dy;
+		if (map.get(Math.floor(this.x + dx), Math.floor(this.y), Math.floor(this.z)) === 0) this.x += dx;
+		if (map.get(Math.floor(this.x), Math.floor(this.y + dy), Math.floor(this.z)) === 0) this.y += dy;
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
@@ -64,7 +65,8 @@
 		} else if (controls.left){
 			if(this.rotation > -Math.PI){ this.rotation -= seconds * Math.PI/6; }
 		} else {
-			this.rotation /= Math.pow(3,seconds);
+			if(Math.abs(this.rotation) < .01){ this.rotation = 0; }
+			else{ this.rotation /= Math.pow(3,seconds); }
 		}
 		
 		if (controls.forward){
@@ -72,21 +74,22 @@
 		} else if (controls.backward){
 			if(this.speed > -10){ this.speed -= .5*seconds; }
 		} else {
-			this.speed /= Math.pow(3,seconds);
+			if(Math.abs(this.speed) < .01){ this.speed = 0; }
+			else{ this.speed /= Math.pow(3,seconds); }
 		}
 
-		if(Math.abs(this.speed) < .01){ this.speed = 0; }
-		if(Math.abs(this.rotation) < .01){ this.rotation = 0; }
-
-		this.walk(this.speed * seconds, map);
-		this.rotate(this.rotation * seconds);
+		if(this.speed != 0){ this.walk(this.speed * seconds, map); }
+		if(this.rotation != 0){ this.rotate(this.rotation * seconds); }
+		
 	};
 
-	function GameMap(width, height) {
+	function GameMap(width, height, depth) {
 		"use strict";
 		this.width = width;
 		this.height = height;
-		this.wallGrid = new Uint16Array(width * height);
+		this.depth = depth;
+		this.zstride = width * height;
+		this.wallGrid = new Uint16Array(width * height * depth);
 		this.skybox = new Bitmap('./deathvalley_panorama.jpg', 4000, 1290);
 		this.textures = [
 			new Bitmap('./texture1.jpg', 1024, 1024),
@@ -96,34 +99,36 @@
 		];
 	}
 
-	GameMap.prototype.get = function(x, y) {
+	GameMap.prototype.get = function(x, y, z) {
 		"use strict";
 		x %= this.width;
 		y %= this.height;
+		z %= this.depth;
 		if(x < 0){ x += this.width; }
 		if(y < 0){ y += this.height; }
-		return this.wallGrid[y * this.width + x];
+		if(z < 0){ z += this.depth; }
+		return this.wallGrid[z * this.zstride + y * this.width + x];
 	};
 
 	GameMap.prototype.randomize = function(fraction) {
 		"use strict";
-		var i, len = this.width * this.height;
-		for (var i = 0; i < len; i++) {
+		var i, len = this.zstride;
+		for (i = 0; i < len; i++) {
 			this.wallGrid[i] = Math.random() < fraction ? Math.floor(Math.random()*4096) + 1 : 0;
 		}
 	};
 
 	GameMap.prototype.maze = function(fraction){
 		"use strict";
-		var i, j, row,
-			offset = 0,
-			len = this.width * this.height,
+		var i, j, k,
+			len = this.zstride * this.depth,
 			texture = Math.floor(Math.random()*4096) + 1,
-			maze = Maze(this.width/2,this.height/2);
-		for(i = 0; i < this.height; i++, offset += this.width){
-			row = maze[i];
-			for(j = 0; j < this.width; j++){
-				this.wallGrid[offset + j] = row[j]*texture;
+			maze = Maze(this.width/2,this.height/2,this.depth/2);
+		for(i = 0; i < this.depth; i++){
+			for(j = 0; j < this.height; j++){
+				for(k = 0; k < this.width; k++){
+					this.wallGrid[i * this.zstride + j * this.width + k] = maze[i][j][k]*texture;
+				}
 			}
 		}
 		this.wallGrid[0] = 0;
@@ -162,8 +167,8 @@
 			mx = Math.ceil(x - 1);
 			dx = mx - x;
 		}
-		dy = dx * yc/xc;
-		dz = dx * zc/xc;
+		dy = dx * (yc/xc||0); //||0 protects against NaN
+		dz = dx * (zc/xc||0);
 		xdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
 		if(yc > 0){
@@ -175,25 +180,25 @@
 			my = Math.ceil(y - 1);
 			dy = my - y;
 		}
-		dx = dy * xc/yc;
-		dz = dy * zc/yc;
+		dx = dy * (xc/yc||0);
+		dz = dy * (zc/yc||0);
 		ydist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 		
 		if(zc > 0){
 			sz = 1;
-			mz = Math.floor(y);
+			mz = Math.floor(z);
 			dz = mz + 1 - z;
 		}else{
 			sz = -1;
 			mz = Math.ceil(z - 1);
 			dz = mz - z;
 		}
-		dx = dz * xc/zc;
-		dy = dz * yc/zc;
+		dx = dz * (xc/zc||0);
+		dy = dz * (yc/zc||0);
 		zdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
 		do {
-			switch(Math.min(xdist, zdist, ydist)){
+			switch(Math.min(xdist, ydist, zdist)){
 			case xdist:
 				dim = 0;
 				mx += sx;
@@ -211,6 +216,10 @@
 				mz += sz;
 				distance = zdist;
 				zdist += zdelta;
+				break;
+			default:
+				debugger;
+				throw "NaN snuck through";
 			}
 			value = this.get(mx, my, mz);
 		} while(value === 0 && distance < range);
@@ -307,7 +316,7 @@
 		this.ctx.save();
 		for (col = 0; col < res; col++) {
 			angle = thetas[col] + dir;
-			ray = map.cast([player.x, player.y, 0], [Math.cos(angle), Math.sin(angle), 0], ranges[col]);
+			ray = map.cast([player.x, player.y, player.z], [Math.cos(angle), Math.sin(angle), 0], ranges[col]);
 			if(ray.value > 0){ this.drawColumn(col, ray, cosines[col], map); }
 		}
 		this.ctx.restore();
@@ -355,17 +364,27 @@
 	};
 
 	var display = document.getElementById('display');
-	var map = new GameMap(16,64);
-	var player = new Player(.3, .3, Math.PI * 0.3);
+	var map = new GameMap(8,8,8);
+	//map.randomize(.001);
+	map.maze(.05);
+	
+	var px = 0, py = 0, pz = 2;
+	start_loop: for(;px < 8; px++){
+		for(;py < 8; py++){
+			for(;pz < 8; pz++){
+				if(map.get(px,py,pz) === 0){ break start_loop; }
+			}
+		}
+	}
+	var player = new Player(px+.5, py+.5, pz+.5, Math.PI * 0.5);
+	console.log(map.get(Math.floor(px+.5), Math.floor(py+.5), Math.floor(pz+.5)));
+	player.walk(0, map);
 	var controls = new Controls();
 	var camera = new Camera(display, 640, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
 		player.update(controls.states, map, seconds);
 		camera.render(player, map, seconds);
 	});
-
-	//map.randomize(.001);
-	map.maze(.05);
 	loop.start();
 
 	//setTimeout(function(){ loop.stop = true; }, 1000);
