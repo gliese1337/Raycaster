@@ -219,6 +219,7 @@
 		this.angles = angles;
 		this.cosines = cosines;
 		this.ranges = ranges;
+		this.fps = [];
 
 		scale = Math.tan(fov/2);
 		for (col = 0; col < resolution; col++) {
@@ -230,10 +231,17 @@
 		}
 	}
 
-	Camera.prototype.render = function(player, map) {
+	Camera.prototype.render = function(player, map, seconds) {
 		"use strict";
+		var fps;
 		this.drawSky(player.direction, map.skybox, map.light);
 		this.drawColumns(player, map);
+		if(this.fps.length > 20){ this.fps.shift(); }
+		this.fps.push(1/seconds);
+		fps = this.fps.reduce(function(a,n){ return a + n; })/this.fps.length;
+		this.ctx.fillStyle = "#ffffff";
+		this.ctx.font = "12px Arial";
+		this.ctx.fillText(Math.round(fps).toString()+" FPS", 25, 25);
 	};
 
 	Camera.prototype.drawSky = function(direction, sky, ambient) {
@@ -320,7 +328,7 @@
 	var camera = new Camera(display, 640, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
 		player.update(controls.states, map, seconds);
-		camera.render(player, map);
+		camera.render(player, map, seconds);
 	});
 
 	//map.randomize(.001);
