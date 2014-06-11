@@ -12,8 +12,8 @@
 
 	function Controls() {
 		"use strict";
-		this.codes  = { 37: 'left', 39: 'right', 38: 'forward', 40: 'backward' };
-		this.states = { 'left': false, 'right': false, 'forward': false, 'backward': false };
+		this.codes  = { 32: 'forward', 37: 'left', 39: 'right', 38: 'up', 40: 'down' };
+		this.states = { 'forward': false, 'left': false, 'right': false, 'up': false, 'down': false };
 		document.addEventListener('keydown', this.onKey.bind(this, true), false);
 		document.addEventListener('keyup', this.onKey.bind(this, false), false);
 	}
@@ -35,52 +35,58 @@
 		this.height = height;
 	}
 
-	function Player(x, y, z, direction) {
+	function Player(x, y, z, theta, phi) {
 		"use strict";
 		this.x = x;
 		this.y = y;
 		this.z = z;
-		this.rotation = 0;
 		this.speed = 0;
-		this.direction = direction;
+		this.theta = (theta + CIRCLE) % CIRCLE;
+		this.phi = phi % Math.PI/2;
 	}
 
 	Player.prototype.rotate = function(angle) {
 		"use strict";
-		this.direction = (this.direction + angle + CIRCLE) % (CIRCLE);
+		this.theta = (this.theta + angle + CIRCLE) % CIRCLE;
+	};
+	
+	Player.prototype.incline = function(angle) {
+		"use strict";
+		this.phi = (this.phi + angle) % (Math.PI/2);
 	};
 
 	Player.prototype.walk = function(distance, map) {
 		"use strict";
-		var dx = Math.cos(this.direction) * distance;
-		var dy = Math.sin(this.direction) * distance;
+		var dx = Math.cos(this.theta)*Math.cos(this.phi) * distance;
+		var dy = Math.sin(this.theta)*Math.cos(this.phi) * distance;
+		var dz = Math.sin(this.phi) * distance;
 		if (map.get(Math.floor(this.x + dx), Math.floor(this.y), Math.floor(this.z)) === 0) this.x += dx;
 		if (map.get(Math.floor(this.x), Math.floor(this.y + dy), Math.floor(this.z)) === 0) this.y += dy;
+		if (map.get(Math.floor(this.x), Math.floor(this.y), Math.floor(this.z + dz)) === 0) this.z += dz;
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
 		"use strict";
 		if (controls.right){
-			if(this.rotation < Math.PI){ this.rotation += seconds * Math.PI/6; }
+			this.rotate(seconds * Math.PI/6);
 		} else if (controls.left){
-			if(this.rotation > -Math.PI){ this.rotation -= seconds * Math.PI/6; }
-		} else {
-			if(Math.abs(this.rotation) < .01){ this.rotation = 0; }
-			else{ this.rotation /= Math.pow(3,seconds); }
+			this.rotate(-seconds * Math.PI/6);
+		}
+		
+		if (controls.up){
+			this.incline(seconds * Math.PI/6);
+		} else if (controls.down){
+			this.incline(-seconds * Math.PI/6);
 		}
 		
 		if (controls.forward){
 			if(this.speed < 10){ this.speed += .5*seconds; }
-		} else if (controls.backward){
-			if(this.speed > -10){ this.speed -= .5*seconds; }
 		} else {
-			if(Math.abs(this.speed) < .01){ this.speed = 0; }
+			if(this.speed < .01){ this.speed = 0; }
 			else{ this.speed /= Math.pow(3,seconds); }
 		}
 
-		if(this.speed != 0){ this.walk(this.speed * seconds, map); }
-		if(this.rotation != 0){ this.rotate(this.rotation * seconds); }
-		
+		if(this.speed != 0){ this.walk(this.speed * seconds, map); }		
 	};
 
 	function GameMap(width, height, depth) {
@@ -275,7 +281,7 @@
 	Camera.prototype.render = function(player, map, seconds) {
 		"use strict";
 		var fps;
-		this.drawSky(player.direction, map.skybox, map.light);
+		this.drawSky(player.theta, map.skybox, map.light);
 		this.drawColumns(player, map);
 		if(this.fps.length > 20){ this.fps.shift(); }
 		this.fps.push(1/seconds);
@@ -285,10 +291,10 @@
 		this.ctx.fillText(Math.round(fps).toString()+" FPS", 25, 25);
 	};
 
-	Camera.prototype.drawSky = function(direction, sky, ambient) {
+	Camera.prototype.drawSky = function(theta, sky, ambient) {
 		"use strict";
 		var width = this.width * (CIRCLE / this.fov);
-		var left = -width * direction / CIRCLE;
+		var left = -width * theta / CIRCLE;
 
 		this.ctx.save();
 		this.ctx.drawImage(sky.image, left, 0, width, this.height);
@@ -310,13 +316,17 @@
 			cosines = this.cosines,
 			ranges = this.ranges,
 			height = this.height,
-			dir = player.direction,
-			col, angle, p_angle, ray;
-			
+			theta = player.theta,
+			phi = player.phi,
+			col, angle, pcos, psin, ray;
+		
+		pcos = Math.cos(phi);
+		psin = Math.sin(phi);
+		
 		this.ctx.save();
 		for (col = 0; col < res; col++) {
-			angle = thetas[col] + dir;
-			ray = map.cast([player.x, player.y, player.z], [Math.cos(angle), Math.sin(angle), 0], ranges[col]);
+			angle = thetas[col] + theta;
+			ray = map.cast([player.x, player.y, player.z], [Math.cos(angle)*pcos, Math.sin(angle)*pcos, psin], ranges[col]);
 			if(ray.value > 0){ this.drawColumn(col, ray, cosines[col], map); }
 		}
 		this.ctx.restore();
@@ -376,9 +386,7 @@
 			}
 		}
 	}
-	var player = new Player(px+.5, py+.5, pz+.5, Math.PI * 0.5);
-	console.log(map.get(Math.floor(px+.5), Math.floor(py+.5), Math.floor(pz+.5)));
-	player.walk(0, map);
+	var player = new Player(px+.5, py+.5, pz+.5, Math.PI * 0.5, 0);
 	var controls = new Controls();
 	var camera = new Camera(display, 640, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
