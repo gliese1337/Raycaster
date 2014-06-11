@@ -6,7 +6,7 @@
 	<script src="./mazegenerator.js"></script>
 </head>
 <body style='background: #000; margin: 0; padding: 0'>
-	<canvas id='display' width='1' height='1' style='width: 100%; height: 100%;' />
+	<canvas id='display' width='1' height='1' />
 	<script>
 	var CIRCLE = Math.PI * 2;
 
@@ -244,8 +244,8 @@
 	function Camera(canvas, hres, vres, fov) {
 		"use strict";
 		var i, scale, angle, cos,
-			width = window.innerWidth * 0.5,
-			height = window.innerHeight * 0.5,
+			width = 4*hres,//window.innerWidth * 0.5,
+			height = 4*vres,//window.innerHeight * 0.5,
 			thetas = new Float32Array(hres),
 			phis = new Float32Array(vres),
 			cosines = new Float32Array(hres),
@@ -412,8 +412,8 @@
 
 	var display = document.getElementById('display');
 	var map = new GameMap(8,8,8);
-	//map.randomize(.001);
-	map.maze(.05);
+	map.randomize(.01);
+	//map.maze(.05);
 	
 	var px = 0, py = 0, pz = 2;
 	start_loop: for(;px < 8; px++){
@@ -431,8 +431,6 @@
 		camera.render(player, map, seconds);
 	});
 
-	map.randomize(.125);
-	//map.maze(.05);
 	loop.start();
 
 	//setTimeout(function(){ loop.stop = true; }, 1000);
