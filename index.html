@@ -35,10 +35,9 @@
 		this.height = height;
 	}
 
-	function Player(x, y, direction) {
+	function Player(pos, direction) {
 		"use strict";
-		this.x = x;
-		this.y = y;
+		this.pos = pos;
 		this.rotation = 0;
 		this.speed = 0;
 		this.direction = direction;
@@ -46,15 +45,21 @@
 
 	Player.prototype.rotate = function(angle) {
 		"use strict";
-		this.direction = (this.direction + angle + CIRCLE) % (CIRCLE);
+		var x = this.direction[0],
+			y = this.direction[1],
+			cos = Math.cos(angle),
+			sin = Math.sin(angle);
+		this.direction = [x*cos - y*sin, x*sin + y*cos];
 	};
 
 	Player.prototype.walk = function(distance, map) {
 		"use strict";
-		var dx = Math.cos(this.direction) * distance;
-		var dy = Math.sin(this.direction) * distance;
-		if (map.get(Math.floor(this.x + dx), Math.floor(this.y)) <= 0) this.x += dx;
-		if (map.get(Math.floor(this.x), Math.floor(this.y + dy)) <= 0) this.y += dy;
+		var dir = this.direction,
+			pos = this.pos,
+			dx = dir[0] * distance,
+			dy = dir[1] * distance;
+		if (map.get(Math.floor(pos[0] + dx), Math.floor(pos[1])) <= 0) pos[0] += dx;
+		if (map.get(Math.floor(pos[0]), Math.floor(pos[1] + dy)) <= 0) pos[1] += dy;
 	};
 
 	Player.prototype.update = function(controls, map, seconds) {
@@ -206,7 +211,7 @@
 	function Camera(canvas, resolution, fov) {
 		"use strict";
 		var col, scale, angle, cos,
-			angles = new Float32Array(resolution),
+			sines = new Float32Array(resolution),
 			cosines = new Float32Array(resolution),
 			ranges = new Uint32Array(resolution);
 		this.ctx = canvas.getContext('2d');
@@ -216,7 +221,7 @@
 		this.spacing = this.width / resolution;
 		this.fov = fov;
 		this.lightRange = 20;
-		this.angles = angles;
+		this.sines = sines;
 		this.cosines = cosines;
 		this.ranges = ranges;
 		this.fps = [];
@@ -225,7 +230,7 @@
 		for (col = 0; col < resolution; col++) {
 			angle = Math.atan(scale*(col / resolution - 0.5));
 			cos = Math.cos(angle);
-			angles[col] = angle;
+			sines[col] = Math.sin(angle);
 			cosines[col] = cos;
 			ranges[col] = Math.round(this.height / cos);
 		}
@@ -247,7 +252,8 @@
 	Camera.prototype.drawSky = function(direction, sky, ambient) {
 		"use strict";
 		var width = this.width * (CIRCLE / this.fov);
-		var left = -width * direction / CIRCLE;
+		var acos = Math.acos(direction[0]);
+		var left = -width * (acos + (direction[1] > 0 ? 0 : 2 * (Math.PI - acos))) / CIRCLE;
 
 		this.ctx.save();
 		this.ctx.drawImage(sky.image, left, 0, width, this.height);
@@ -265,17 +271,19 @@
 	Camera.prototype.drawColumns = function(player, map) {
 		"use strict";
 		var res = this.resolution,
-			angles = this.angles,
+			sines = this.sines,
 			cosines = this.cosines,
 			ranges = this.ranges,
 			height = this.height,
 			dir = player.direction,
-			col, angle, ray;
+			pcos = dir[0], psin = dir[1],
+			rcos, rsin, col, ray;
 		this.ctx.save();
 		for (col = 0; col < res; col++) {
-			angle = angles[col] + dir;
-			ray = map.cast([player.x, player.y], [Math.cos(angle), Math.sin(angle)], ranges[col]);
-			if(ray.value > 0){ this.drawColumn(col, ray, cosines[col], map); }
+			rsin = sines[col];
+			rcos = cosines[col];
+			ray = map.cast(player.pos, [pcos*rcos-psin*rsin, psin*rcos+pcos*rsin], ranges[col]);
+			if(ray.value > 0){ this.drawColumn(col, ray, rcos, map); }
 		}
 		this.ctx.restore();
 	};
@@ -323,7 +331,7 @@
 
 	var display = document.getElementById('display');
 	var map = new GameMap(16,64);
-	var player = new Player(.3, .3, Math.PI * 0.3);
+	var player = new Player([.3, .3], [1, 0]);
 	var controls = new Controls();
 	var camera = new Camera(display, 640, Math.PI * 0.4);
 	var loop = new GameLoop(function(seconds){
