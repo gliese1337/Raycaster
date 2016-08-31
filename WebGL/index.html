@@ -7,6 +7,7 @@
 <script src="webgl.js"></script>
 </head>
 <body>
+<canvas id="display" width="800" height="600"></canvas>
 
 <script id="vertex-shader" type="x-shader/x-vertex">
 	attribute vec4 a_position;
@@ -16,5 +17,6 @@
 <script id="fragment-shader" src="fragment.shader" type="x-shader/x-fragment"></script>
 
 <script>
+	main(document.getElementById("display"));
 </script>
 </body></html>
