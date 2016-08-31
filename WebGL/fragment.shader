@@ -106,7 +106,7 @@ vec4 cast_vec(vec3 o, vec3 v, float range){
 }
 
 void main(){
-	// convert clipspace to a viewing angles
+	// convert clipspace to viewing angles
 	vec2 angles = atan(u_scale * (gl_FragCoord.xy / u_resolution - 0.5));
 	vec2 sins = sin(angles + u_look);
 	vec2 coss = cos(angles + u_look);
