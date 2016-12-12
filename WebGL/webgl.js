@@ -63,7 +63,7 @@ Player.prototype.update = function(controls, map, seconds) {
 		this.rotate(-seconds * Math.PI/6);
 		moved = true;
 	}
-
+	
 	if (controls.up){
 		this.incline(seconds * Math.PI/6);
 		moved = true;
@@ -71,25 +71,19 @@ Player.prototype.update = function(controls, map, seconds) {
 		this.incline(-seconds * Math.PI/6);
 		moved = true;
 	}
-
-	/*if (controls.forward){
+	
+	if (controls.forward){
 		if(this.speed < 10){ this.speed += .5*seconds; }
 	} else {
 		if(this.speed < .01){ this.speed = 0; }
 		else{ this.speed /= Math.pow(3,seconds); }
-	}*/
-
-	if (controls.forward){
-		this.speed = 2;
-	} else {
-		this.speed = 0;
 	}
 
 	if(this.speed != 0){
 		this.walk(this.speed * seconds, map);
 		moved = true;
 	}
-
+	
 	return moved;
 };
 
@@ -111,13 +105,15 @@ GameLoop.prototype.start = function() {
 	});
 };
 
-function main(canvas){
-	"use strict";
-
+function Camera(canvas, map, hfov, vfov){
 	// Get A WebGL context
 	var gl = canvas.getContext("webgl");
-	if (!gl){ return; }
-
+	if (!gl){ throw new Error("No WebGL Support"); }
+	
+	this.gl = gl;
+	this.lookLoc = null;
+	this.originLoc = null;
+	
 	// Create a buffer and put a single rectangle in it
 	// (2 triangles)
 	gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -125,28 +121,9 @@ function main(canvas){
 		-1, -1,	1, -1,	-1, 1,
 		1, -1,	-1, 1,	1, 1,
 	]), gl.STATIC_DRAW);
-
-	// Create the Map, Player, and Controls
-	var map = [];
-
-	for(var i = 0; i < 512; i++){
-		map[i] = Math.random() < 0.05 ? 1 : 0;
-	}
-
-	var px = 0, py = 0, pz = 0;
-	start_loop: for(;px < 512; px+=64){
-		for(;py < 64; py+=8){
-			for(;pz < 8; pz++){
-				if(map[px + py + pz] === 0){ break start_loop; }
-			}
-		}
-	}
-
-	var player = new Player(px/64+.5, py/8+.5, pz+.5, 0, 0);
-	var controls = new Controls();
-
+	
 	// compile the shaders and link into a program
-	GL_Utils.createProgramFromScripts(gl, ["vertex-shader", "fragment-shader"])
+	var promise = GL_Utils.createProgramFromScripts(gl, ["vertex-shader", "fragment-shader"])
 	.then(function(program){
 
 		// look up where the vertex data needs to go.
@@ -172,34 +149,61 @@ function main(canvas){
 		var resLoc = gl.getUniformLocation(program, "u_resolution");
 		var scaleLoc = gl.getUniformLocation(program, "u_scale");
 		var mapLoc = gl.getUniformLocation(program, "u_map");
-		var originLoc = gl.getUniformLocation(program, "u_origin");
-		var lookLoc = gl.getUniformLocation(program, "u_look");
+		this.originLoc = gl.getUniformLocation(program, "u_origin");
+		this.lookLoc = gl.getUniformLocation(program, "u_look");
 
 		// Set Uniforms
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
-		gl.uniform2f(scaleLoc, Math.tan(Math.PI / 4), Math.tan(Math.PI / 5));
+		gl.uniform2f(scaleLoc, hfov, vfov);
 		gl.uniform1iv(mapLoc, map);
+	}.bind(this));
+	
+	this.onready = promise.then.bind(promise);
+}
 
-		// draw
-		var offset = 0;
-		var count = 6;
-		var fps = [];
-		var loop = new GameLoop(function(seconds){
-			var change = player.update(controls.states, map, seconds);
-			if(change){
-				gl.uniform2f(lookLoc, player.theta, player.phi);
-				gl.uniform3f(originLoc, player.x, player.y, player.z);
-				gl.drawArrays(gl.TRIANGLES, offset, count);
-				console.log(player.x,player.y,player.z);
+Camera.prototype.render = function(player){
+	var gl = this.gl;
+	gl.uniform2f(this.lookLoc, player.theta, player.phi);
+	gl.uniform3f(this.originLoc, player.x, player.y, player.z);
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+};
+
+function main(canvas){
+	"use strict";
+
+	var map = [];
+
+	for(var i = 0; i < 512; i++){
+		map[i] = Math.random() < 0.05 ? 1 : 0;
+	}
+
+	var px = 0, py = 0, pz = 0;
+	start_loop: for(;px < 512; px+=64){
+		for(;py < 64; py+=8){
+			for(;pz < 8; pz++){
+				if(map[px + py + pz] === 0){ break start_loop; }
 			}
-			//if(fps.length > 20){ fps.shift(); }
-			//fps.push(1/seconds);
-			//console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
-		});
+		}
+	}
 
-		gl.uniform2f(lookLoc, player.theta, player.phi);
-		gl.uniform3f(originLoc, player.x, player.y, player.z);
-		gl.drawArrays(gl.TRIANGLES, offset, count);
-		loop.start();
+	var player = new Player(px/64+.5, py/8+.5, pz+.5, 0, 0);
+	var controls = new Controls();
+	var camera = new Camera(canvas, map, Math.PI / 2, Math.PI / 2.5);
+	
+	var fps = [];
+	var loop = new GameLoop(function(seconds){
+		var change = player.update(controls.states, map, seconds);
+		if(change){
+			camera.render(player);
+			console.log(player.x,player.y,player.z);
+		}
+		//if(fps.length > 20){ fps.shift(); }
+		//fps.push(1/seconds);
+		//console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
+	});
+	
+	camera.onready(function(){
+		camera.render(player);
+		loop.start();		
 	});
 }

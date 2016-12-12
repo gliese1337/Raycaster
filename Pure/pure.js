@@ -17,14 +17,6 @@ Controls.prototype.onKey = function(val, e) {
 	e.stopPropagation && e.stopPropagation();
 };
 
-function Bitmap(src, width, height) {
-	"use strict";
-	this.image = new Image();
-	this.image.src = src;
-	this.width = width;
-	this.height = height;
-}
-
 function Player(x, y, z, theta, phi) {
 	"use strict";
 	this.x = x;
@@ -59,14 +51,18 @@ Player.prototype.update = function(controls, map, seconds) {
 	var moved = false;
 	if (controls.right){
 		this.rotate(seconds * Math.PI/6);
+		moved = true;
 	} else if (controls.left){
 		this.rotate(-seconds * Math.PI/6);
+		moved = true;
 	}
 	
 	if (controls.up){
 		this.incline(seconds * Math.PI/6);
+		moved = true;
 	} else if (controls.down){
 		this.incline(-seconds * Math.PI/6);
+		moved = true;
 	}
 	
 	if (controls.forward){
@@ -76,8 +72,21 @@ Player.prototype.update = function(controls, map, seconds) {
 		else{ this.speed /= Math.pow(3,seconds); }
 	}
 
-	if(this.speed != 0){ this.walk(this.speed * seconds, map); }		
+	if(this.speed != 0){
+		this.walk(this.speed * seconds, map);
+		moved = true;
+	}
+	
+	return moved;
 };
+
+function Bitmap(src, width, height) {
+	"use strict";
+	this.image = new Image();
+	this.image.src = src;
+	this.width = width;
+	this.height = height;
+}
 
 function GameMap(width, height, depth) {
 	"use strict";
@@ -133,122 +142,22 @@ GameMap.prototype.maze = function(fraction){
 	}
 };
 
-GameMap.prototype.cast = function(point, vector, range) {
+function Camera(canvas, hfov, vfov) {
 	"use strict";
-	var xc = vector[0],
-		yc = vector[1],
-		zc = vector[2];
-
-	// Starting from the player, we find the nearest horizontal and vertical gridlines. We move to whichever is closer and check for a wall (inspect). Then we repeat until we've traced the entire length of each ray.
-
-	var mx, my, mz, sx, sy, sz, dx, dy, dz,
-		xdelta, ydelta, zdelta,
-		xdist, ydist, zdist,
-		value, dim,
-		x = point[0],
-		y = point[1],
-		z = point[2],
-		distance = 0;
-	
-	xdelta = Math.abs(1/xc);
-	ydelta = Math.abs(1/yc);
-	zdelta = Math.abs(1/zc);
-
-	if(xc > 0){
-		sx = 1;
-		mx = Math.floor(x);
-		dx = mx + 1 - x;
-	}else{
-		sx = -1;
-		mx = Math.ceil(x - 1);
-		dx = mx - x;
-	}
-	dy = dx * (yc/xc||0); //||0 protects against NaN
-	dz = dx * (zc/xc||0);
-	xdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-
-	if(yc > 0){
-		sy = 1;
-		my = Math.floor(y);
-		dy = my + 1 - y;
-	}else{
-		sy = -1;
-		my = Math.ceil(y - 1);
-		dy = my - y;
-	}
-	dx = dy * (xc/yc||0);
-	dz = dy * (zc/yc||0);
-	ydist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-	
-	if(zc > 0){
-		sz = 1;
-		mz = Math.floor(z);
-		dz = mz + 1 - z;
-	}else{
-		sz = -1;
-		mz = Math.ceil(z - 1);
-		dz = mz - z;
-	}
-	dx = dz * (xc/zc||0);
-	dy = dz * (yc/zc||0);
-	zdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-
-	do {
-		switch(Math.min(xdist, ydist, zdist)){
-		case xdist:
-			dim = 0;
-			mx += sx;
-			distance = xdist;
-			xdist += xdelta;
-			break;
-		case ydist:
-			dim = 1;
-			my += sy;
-			distance = ydist;
-			ydist += ydelta;
-			break;
-		case zdist:
-			dim = 2;
-			mz += sz;
-			distance = zdist;
-			zdist += zdelta;
-			break;
-		default:
-			debugger;
-			throw "NaN snuck through";
-		}
-		value = this.get(mx, my, mz);
-	} while(value === 0 && distance < range);
-
-	return {
-		x: x + distance * xc,
-		y: y + distance * yc,
-		z: z + distance * zc,
-		vector: vector,
-		dimension: dim,
-		value: value,
-		distance: distance,
-	};
-};
-
-function Camera(canvas, hres, vres, fov) {
-	"use strict";
-	var i, angle,
-		width = 4*hres,//window.innerWidth * 0.5,
-		height = 4*vres,//window.innerHeight * 0.5,
-		scale = Math.tan(fov/2);
+	var width = canvas.width,
+		height = canvas.height;
 
 	this.ctx = canvas.getContext('2d');
-	this.width = canvas.width = width;
-	this.height = canvas.height = height;
-	this.hres = hres;
-	this.vres = vres;
-	this.hspacing = width / hres;
-	this.vspacing = height / vres;
-	this.fov = fov;
+	this.width = width;
+	this.height = height;
+	this.hres = width / 4;
+	this.vres = height / 4;
+	this.hspacing = 4; //width / hres;
+	this.vspacing = 4; //height / vres;
+	this.fov = hfov;
 	this.lightRange = 40;
 	this.fps = [];
-	this.scale = scale;
+	this.scale = {h:Math.tan(hfov/2), v:Math.tan(vfov/2)}
 }
 
 Camera.prototype.render = function(player, map, seconds) {
@@ -286,29 +195,23 @@ Camera.prototype.drawForeground = function(player, map) {
 	"use strict";
 	var hres = this.hres,
 		vres = this.vres,
+		cast = getFragShader(
+			player, player,
+			{h:hres, v:vres},
+			this.scale,
+			{x:map.height, y:map.width, z:map.depth},
+			map.wallGrid
+		),
 		col, row, ray;
 
 	this.ctx.save();
 	for (col = 0; col < hres; col++) {
 		for (row = 0; row < vres; row++) {
-			ray = this.cast(player, player, col, row, map);
+			ray = cast(col, row);
 			if(ray.value > 0){ this.drawPixel(col, row, ray, map); }
 		}
 	}
 	this.ctx.restore();
-};
-
-Camera.prototype.cast = function(origin, look, x, y, map){
-	var theta = look.theta + Math.atan(this.scale*(x / this.hres - 0.5));
-	var phi = look.phi + Math.atan(this.scale*(y / this.vres - 0.5));
-	var tcos = Math.cos(theta);
-	var tsin = Math.sin(theta);
-	var pcos = Math.cos(phi);
-	var psin = Math.sin(phi);
-	return map.cast(
-		[origin.x, origin.y, origin.z],
-		[tcos*pcos, tsin*pcos, psin], 10
-	);
 };
 
 var shades = [.125,.125,.33,.5,.5,.5];
@@ -386,11 +289,15 @@ function main(display){
 	}
 	var player = new Player(px+.5, py+.5, pz+.5, Math.PI * 0.5, 0);
 	var controls = new Controls();
-	var camera = new Camera(display, 80, 80, Math.PI * 0.4);
+	var camera = new Camera(display,  Math.PI / 2, Math.PI / 2.5);
 	var loop = new GameLoop(function(seconds){
 		player.update(controls.states, map, seconds);
-		camera.render(player, map, seconds);
+		var change = player.update(controls.states, map, seconds);
+		if(change){
+			camera.render(player, map, seconds);
+		}
 	});
-
+	
+	camera.render(player, map, 0);
 	loop.start();
 }
