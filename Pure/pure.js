@@ -233,13 +233,10 @@ GameMap.prototype.cast = function(point, vector, range) {
 
 function Camera(canvas, hres, vres, fov) {
 	"use strict";
-	var i, scale, angle, cos,
+	var i, angle,
 		width = 4*hres,//window.innerWidth * 0.5,
 		height = 4*vres,//window.innerHeight * 0.5,
-		thetas = new Float32Array(hres),
-		phis = new Float32Array(vres),
-		cosines = new Float32Array(hres),
-		ranges = new Uint32Array(hres);
+		scale = Math.tan(fov/2);
 
 	this.ctx = canvas.getContext('2d');
 	this.width = canvas.width = width;
@@ -250,34 +247,15 @@ function Camera(canvas, hres, vres, fov) {
 	this.vspacing = height / vres;
 	this.fov = fov;
 	this.lightRange = 40;
-	this.thetas = thetas;
-	this.phis = phis;
-	this.cosines = cosines;
-	this.ranges = ranges;
 	this.fps = [];
-
-	this.row_cos = new Float32Array(hres);
-	this.row_sin = new Float32Array(hres);
-	
-	scale = Math.tan(fov/2);
-	for (i = 0; i < hres; i++) {
-		angle = Math.atan(scale*(i / hres - 0.5));
-		cos = Math.cos(angle);
-		thetas[i] = angle;
-		cosines[i] = cos;
-		ranges[i] = Math.round(height / cos);
-	}
-	
-	for (i = 0; i < vres; i++) {
-		phis[i] = Math.atan(scale*(i / vres - 0.5));
-	}
+	this.scale = scale;
 }
 
 Camera.prototype.render = function(player, map, seconds) {
 	"use strict";
 	var fps;
 	this.drawSky(player.theta, map.skybox, map.light);
-	this.drawColumns(player, map);
+	this.drawForeground(player, map);
 	if(this.fps.length > 20){ this.fps.shift(); }
 	this.fps.push(1/seconds);
 	fps = this.fps.reduce(function(a,n){ return a + n; })/this.fps.length;
@@ -304,40 +282,33 @@ Camera.prototype.drawSky = function(theta, sky, ambient) {
 	this.ctx.restore();
 };
 
-Camera.prototype.drawColumns = function(player, map) {
+Camera.prototype.drawForeground = function(player, map) {
 	"use strict";
 	var hres = this.hres,
 		vres = this.vres,
-		thetas = this.thetas,
-		phis = this.phis,
-		ranges = this.ranges,
-		height = this.height,
-		row_cos = this.row_cos,
-		row_sin = this.row_sin,
-		p_theta = player.theta,
-		p_phi = player.phi,
-		origin = [player.x, player.y, player.z],
-		col, row, theta, phi,
-		tcos, tsin, pcos, ray;
+		col, row, ray;
 
-	for (row = 0; row < vres; row++) {
-		phi = phis[row] + p_phi;
-		row_cos[row] = Math.cos(phi);
-		row_sin[row] = Math.sin(phi);
-	}
-	
 	this.ctx.save();
 	for (col = 0; col < hres; col++) {
-		theta = p_theta + thetas[col];
-		tcos = Math.cos(theta);
-		tsin = Math.sin(theta);
 		for (row = 0; row < vres; row++) {
-			pcos = row_cos[row];
-			ray = map.cast(origin, [tcos*pcos, tsin*pcos, row_sin[row]], 10);
+			ray = this.cast(player, player, col, row, map);
 			if(ray.value > 0){ this.drawPixel(col, row, ray, map); }
 		}
 	}
 	this.ctx.restore();
+};
+
+Camera.prototype.cast = function(origin, look, x, y, map){
+	var theta = look.theta + Math.atan(this.scale*(x / this.hres - 0.5));
+	var phi = look.phi + Math.atan(this.scale*(y / this.vres - 0.5));
+	var tcos = Math.cos(theta);
+	var tsin = Math.sin(theta);
+	var pcos = Math.cos(phi);
+	var psin = Math.sin(phi);
+	return map.cast(
+		[origin.x, origin.y, origin.z],
+		[tcos*pcos, tsin*pcos, psin], 10
+	);
 };
 
 var shades = [.125,.125,.33,.5,.5,.5];
