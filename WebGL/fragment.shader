@@ -1,8 +1,10 @@
 precision mediump float;
 uniform vec2 u_resolution;
-uniform vec2 u_scale; // tan(fov/2)
-uniform vec2 u_look;
+uniform vec2 u_scale;
 uniform vec3 u_origin;
+uniform vec3 u_right;
+uniform vec3 u_up;
+uniform vec3 u_forward;
 uniform int u_map[512];
 uniform sampler2D u_textures[6];
 
@@ -113,22 +115,14 @@ vec4 cast_vec(vec3 o, vec3 v, float range){
 	
 	float alpha = 1.0 - distance/range;
 	return vec4(tex.rgb, alpha);
-
-	/*
-	if(dim == 1){ return vec4(1,0,0,alpha); }
-	if(dim == 2){ return vec4(0,1,0,alpha); }
-	if(dim == 3){ return vec4(0,0,1,alpha); }
-	if(dim == -1){ return vec4(0,1,1,alpha); } 
-	if(dim == -2){ return vec4(1,0,1,alpha); }
-	return vec4(1,1,0,alpha);
-	*/
 }
 
 void main(){
 	// convert clipspace to viewing angles
-	vec2 angles = atan(u_scale * (gl_FragCoord.xy / u_resolution - 0.5));
-	vec2 sins = sin(angles + u_look);
-	vec2 coss = cos(angles + u_look);
-	vec3 comps = vec3(coss.x*coss.y, sins.x*coss.y, sins.y);
-	gl_FragColor = cast_vec(u_origin, comps, 10.0);
+	vec2 coords = gl_FragCoord.xy / u_resolution - 0.5;
+	vec2 angles = atan(u_scale * coords);
+	vec3 hray = u_forward*cos(angles.x) + u_right*sin(angles.x);
+	vec3 vray = u_forward*cos(angles.y) + u_up*sin(angles.y);
+	
+	gl_FragColor = cast_vec(u_origin, hray+vray, 10.0);
 }
