@@ -1,5 +1,3 @@
-var CIRCLE = Math.PI * 2;
-
 function Controls() {
 	"use strict";
 	this.codes  = { 32: 'forward', 37: 'left', 39: 'right', 38: 'up', 40: 'down' };
@@ -17,31 +15,57 @@ Controls.prototype.onKey = function(val, e) {
 	e.stopPropagation && e.stopPropagation();
 };
 
-function Player(x, y, z, theta, phi) {
+function Player(x, y, z) {
 	"use strict";
 	this.x = x;
 	this.y = y;
 	this.z = z;
 	this.speed = 0;
-	this.theta = (theta + CIRCLE) % CIRCLE;
-	this.phi = phi % Math.PI/2;
+	this.right = {x:1,y:0,z:1};
+	this.up = {x:0,y:1,z:0};
+	this.forward = {x:0,y:0,z:1};
 }
 
-Player.prototype.rotate = function(angle) {
+function vec_rot(v, k, t){
+	var cos = Math.cos(t),
+		sin = Math.sin(t);
+	
+	//v' = v*cos(t) + (k x v)sin(t) + k(k . v)(1 - cos(t))
+	//When the vectors are orthgonal, the dot product is always 0,
+	//so we can drop the last term
+	return {
+		x: v.x*cos + (v.y*k.z-v.z*k.y)*sin,
+		y: v.y*cos + (v.z*k.x-v.x*k.z)*sin,
+		z: v.z*cos + (v.x*k.y-v.y*k.x)*sin
+	};
+}
+
+Player.prototype.pitch = function(angle){
+	//rotate up and forward around right
 	"use strict";
-	this.theta = (this.theta + angle + CIRCLE) % CIRCLE;
+	this.up = vec_rot(this.up, this.right, angle);
+	this.forward = vec_rot(this.forward, this.right, angle);
 };
 
-Player.prototype.incline = function(angle) {
+Player.prototype.roll = function(angle){
+	//rotate up and right around forward
 	"use strict";
-	this.phi = (this.phi + angle) % (Math.PI/2);
+	this.right = vec_rot(this.right, this.forward, angle);
+	this.up = vec_rot(this.up, this.forward, angle);
+};
+
+Player.prototype.yaw = function(angle){
+	//rotate right and forward around up
+	"use strict";
+	this.right = vec_rot(this.right, this.up, angle);
+	this.forward = vec_rot(this.forward, this.up, angle); 
 };
 
 Player.prototype.walk = function(distance, map) {
 	"use strict";
-	var dx = Math.cos(this.theta)*Math.cos(this.phi) * distance;
-	var dy = Math.sin(this.theta)*Math.cos(this.phi) * distance;
-	var dz = Math.sin(this.phi) * distance;
+	var dx = this.forward.x * distance;
+	var dy = this.forward.y * distance;
+	var dz = this.forward.z * distance;
 	var nx = (((this.x + dx) % 8) + 8) % 8;
 	var ny = (((this.y + dy) % 8) + 8) % 8;
 	var nz = (((this.z + dz) % 8) + 8) % 8;
@@ -57,18 +81,18 @@ Player.prototype.walk = function(distance, map) {
 Player.prototype.update = function(controls, map, seconds) {
 	var moved = false;
 	if (controls.right){
-		this.rotate(seconds * Math.PI/6);
+		this.roll(-seconds * Math.PI/6);
 		moved = true;
 	} else if (controls.left){
-		this.rotate(-seconds * Math.PI/6);
+		this.roll(seconds * Math.PI/6);
 		moved = true;
 	}
 	
 	if (controls.up){
-		this.incline(seconds * Math.PI/6);
+		this.pitch(seconds * Math.PI/6);
 		moved = true;
 	} else if (controls.down){
-		this.incline(-seconds * Math.PI/6);
+		this.pitch(-seconds * Math.PI/6);
 		moved = true;
 	}
 	
@@ -150,8 +174,11 @@ function Camera(canvas, map, hfov, vfov, textures){
 		var scaleLoc = gl.getUniformLocation(program, "u_scale");
 		var mapLoc = gl.getUniformLocation(program, "u_map");
 		var textureLoc = gl.getUniformLocation(program, "u_textures");
+		
 		this.originLoc = gl.getUniformLocation(program, "u_origin");
-		this.lookLoc = gl.getUniformLocation(program, "u_look");
+		this.rightLoc = gl.getUniformLocation(program, "u_right");
+		this.upLoc = gl.getUniformLocation(program, "u_up");
+		this.forwardLoc = gl.getUniformLocation(program, "u_forward");
 
 		// Set Uniforms
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
@@ -185,8 +212,10 @@ function Camera(canvas, map, hfov, vfov, textures){
 
 Camera.prototype.render = function(player){
 	var gl = this.gl;
-	gl.uniform2f(this.lookLoc, player.theta, player.phi);
 	gl.uniform3f(this.originLoc, player.x, player.y, player.z);
+	gl.uniform3f(this.rightLoc, player.right.x, player.right.y, player.right.z);
+	gl.uniform3f(this.upLoc, player.up.x, player.up.y, player.up.z);
+	gl.uniform3f(this.forwardLoc, player.forward.x, player.forward.y, player.forward.z);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
 
@@ -208,7 +237,7 @@ function main(canvas){
 		}
 	}
 
-	var player = new Player(px/64+.5, py/8+.5, pz+.5, 0, 0);
+	var player = new Player(px/64+.5, py/8+.5, pz+.5);
 	var controls = new Controls();
 	var camera = new Camera(canvas, map, Math.PI / 2, Math.PI / 2.5,
 		["texture1.jpg","texture2.jpg","texture4.jpg"]);
