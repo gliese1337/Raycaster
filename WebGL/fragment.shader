@@ -4,6 +4,7 @@ uniform vec2 u_scale; // tan(fov/2)
 uniform vec2 u_look;
 uniform vec3 u_origin;
 uniform int u_map[512];
+uniform sampler2D u_textures[6];
 
 int get_cell(int x, int y, int z){
 	x = int(mod(float(x),8.0));
@@ -28,19 +29,33 @@ int get_cell(int x, int y, int z){
 
 // Find the distance to the next cell boundary
 // for a particular vector component
-float cast_comp(vec3 v, float o, out float sign, out float m){
-	float delta;
+float cast_comp(vec3 v, float o, out int sign, out int m){
+	float delta, fm;
 	if(v.x > 0.0){
-		sign = 1.0;
-		m = floor(o);
-		delta = m + 1.0 - o;
+		sign = 1;
+		fm = floor(o);
+		delta = fm + 1.0 - o;
 	}else{
-		sign = -1.0;
-		m = ceil(o - 1.0);
-		delta = m - o;
+		sign = -1;
+		fm = ceil(o - 1.0);
+		delta = fm - o;
 	}
 
+	m = int(fm);
 	return length(vec3(delta,delta*v.yz/v.x));
+}
+
+const float tex_size = 1024.0;
+vec4 calc_tex(int dim, vec3 ray){
+
+	ray -= floor(ray);
+	
+	if(dim == 1){ return texture2D(u_textures[0], floor(tex_size * ray.yz)); }
+	if(dim == 2){ return texture2D(u_textures[1], floor(tex_size * ray.xz)); }
+	if(dim == 3){ return texture2D(u_textures[2], floor(tex_size * ray.xy)); }
+	if(dim == -1){ return texture2D(u_textures[3], floor(tex_size * ray.yz)); } 
+	if(dim == -2){ return texture2D(u_textures[4], floor(tex_size * ray.xz)); }
+	return texture2D(u_textures[5], floor(tex_size * ray.xy));
 }
 
 vec4 cast_vec(vec3 o, vec3 v, float range){
@@ -49,11 +64,10 @@ vec4 cast_vec(vec3 o, vec3 v, float range){
 	// check for a wall (inspect). Then we repeat until we've
 	// traced the entire length of the ray.
 
-	float sx, sy, sz;
-	float mx, my, mz;
-	float dim;
+	int sx, sy, sz;
+	int mx, my, mz;
+	int dim, value;
 	float distance = 0.0;
-	int value;
 
 	v = normalize(v);
 
@@ -73,36 +87,42 @@ vec4 cast_vec(vec3 o, vec3 v, float range){
 		// Find the next closest cell boundary
 		// and increment distances appropriately
 		if(xdist <= ydist && xdist <= zdist){
-			dim = 1.0*sx;
+			dim = 1*sx;
 			mx += sx;
 			distance = xdist;
 			xdist += deltas.x;
 		}else if(ydist <= xdist && ydist <= zdist){
-			dim = 2.0*sy;
+			dim = 2*sy;
 			my += sy;
 			distance = ydist;
 			ydist += deltas.y;
 		}else{
-			dim = 3.0*sz;
+			dim = 3*sz;
 			mz += sz;
 			distance = zdist;
 			zdist += deltas.z;
 		}
 
-		value = get_cell(int(mx), int(my), int(mz));
+		value = get_cell(mx, my, mz);
 		if(value > 0 || distance >= range){
 			break;
 		}
 	}
 
-	//TODO: Use textures
+	vec3 ray = o + distance *  v;
+	vec4 tex = calc_tex(dim, ray);
+	
 	float alpha = 1.0 - distance/range;
-	if(dim == 1.0){ return vec4(1,0,0,alpha); }
-	if(dim == 2.0){ return vec4(0,1,0,alpha); }
-	if(dim == 3.0){ return vec4(0,0,1,alpha); }
-	if(dim == -1.0){ return vec4(0,1,1,alpha); } 
-	if(dim == -2.0){ return vec4(1,0,1,alpha); }
+	return vec4(tex.rgb, alpha);
+
+	/*
+	if(dim == 1){ return vec4(1,0,0,alpha); }
+	if(dim == 2){ return vec4(0,1,0,alpha); }
+	if(dim == 3){ return vec4(0,0,1,alpha); }
+	if(dim == -1){ return vec4(0,1,1,alpha); } 
+	if(dim == -2){ return vec4(1,0,1,alpha); }
 	return vec4(1,1,0,alpha);
+	*/
 }
 
 void main(){

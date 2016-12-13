@@ -105,7 +105,7 @@ GameLoop.prototype.start = function() {
 	});
 };
 
-function Camera(canvas, map, hfov, vfov){
+function Camera(canvas, map, hfov, vfov, textures){
 	// Get A WebGL context
 	var gl = canvas.getContext("webgl");
 	if (!gl){ throw new Error("No WebGL Support"); }
@@ -149,6 +149,7 @@ function Camera(canvas, map, hfov, vfov){
 		var resLoc = gl.getUniformLocation(program, "u_resolution");
 		var scaleLoc = gl.getUniformLocation(program, "u_scale");
 		var mapLoc = gl.getUniformLocation(program, "u_map");
+		var textureLoc = gl.getUniformLocation(program, "u_textures");
 		this.originLoc = gl.getUniformLocation(program, "u_origin");
 		this.lookLoc = gl.getUniformLocation(program, "u_look");
 
@@ -156,6 +157,27 @@ function Camera(canvas, map, hfov, vfov){
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
 		gl.uniform2f(scaleLoc, hfov, vfov);
 		gl.uniform1iv(mapLoc, map);
+		gl.uniform1iv(textureLoc, textures.map(function(_,i){ return i; }));
+		
+		//load textures
+		return Promise.all(textures.map(function(src,i){
+			var image = new Image();
+			image.src = src;
+			return new Promise(function(resolve){
+				image.addEventListener("load",function(){
+					var tex = gl.createTexture();
+					gl.activeTexture(gl.TEXTURE0 + i);
+					gl.bindTexture(gl.TEXTURE_2D, tex);
+					gl.texImage2D(
+						gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+						gl.UNSIGNED_BYTE, image
+					);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+					resolve();
+				});
+			});
+		}));
 	}.bind(this));
 	
 	this.onready = promise.then.bind(promise);
@@ -188,18 +210,18 @@ function main(canvas){
 
 	var player = new Player(px/64+.5, py/8+.5, pz+.5, 0, 0);
 	var controls = new Controls();
-	var camera = new Camera(canvas, map, Math.PI / 2, Math.PI / 2.5);
+	var camera = new Camera(canvas, map, Math.PI / 2, Math.PI / 2.5,
+		["texture1.jpg","texture2.jpg","texture4.jpg"]);
 	
 	var fps = [];
 	var loop = new GameLoop(function(seconds){
 		var change = player.update(controls.states, map, seconds);
 		if(change){
 			camera.render(player);
-			console.log(player.x,player.y,player.z);
+			console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
 		}
-		//if(fps.length > 20){ fps.shift(); }
-		//fps.push(1/seconds);
-		//console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
+		if(fps.length > 20){ fps.shift(); }
+		fps.push(1/seconds);
 	});
 	
 	camera.onready(function(){
