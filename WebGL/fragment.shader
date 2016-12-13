@@ -45,17 +45,16 @@ float cast_comp(vec3 v, float o, out int sign, out int m){
 	return length(vec3(delta,delta*v.yz/v.x));
 }
 
-const float tex_size = 1024.0;
 vec4 calc_tex(int dim, vec3 ray){
 
 	ray -= floor(ray);
 	
-	if(dim == 1){ return texture2D(u_textures[0], floor(tex_size * ray.yz)); }
-	if(dim == 2){ return texture2D(u_textures[1], floor(tex_size * ray.xz)); }
-	if(dim == 3){ return texture2D(u_textures[2], floor(tex_size * ray.xy)); }
-	if(dim == -1){ return texture2D(u_textures[3], floor(tex_size * ray.yz)); } 
-	if(dim == -2){ return texture2D(u_textures[4], floor(tex_size * ray.xz)); }
-	return texture2D(u_textures[5], floor(tex_size * ray.xy));
+	if(dim == 1){ return texture2D(u_textures[0], ray.yz); }
+	if(dim == 2){ return texture2D(u_textures[1], ray.xz); }
+	if(dim == 3){ return texture2D(u_textures[2], ray.xy); }
+	if(dim == -1){ return texture2D(u_textures[3], ray.yz); } 
+	if(dim == -2){ return texture2D(u_textures[4], ray.xz); }
+	return texture2D(u_textures[5], ray.xy);
 }
 
 vec4 cast_vec(vec3 o, vec3 v, float range){
