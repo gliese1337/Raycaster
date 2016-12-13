@@ -28,19 +28,19 @@ int get_cell(int x, int y, int z){
 
 // Find the distance to the next cell boundary
 // for a particular vector component
-float cast_comp(vec3 v, float origin, out float sign, out float m){
+float cast_comp(vec3 v, float o, out float sign, out float m){
 	float delta;
 	if(v.x > 0.0){
 		sign = 1.0;
-		m = floor(origin);
-		delta = m + 1.0 - origin;
+		m = floor(o);
+		delta = m + 1.0 - o;
 	}else{
 		sign = -1.0;
-		m = ceil(origin - 1.0);
-		delta = m - origin;
+		m = ceil(o - 1.0);
+		delta = m - o;
 	}
 
-	return length(vec3(v.x, delta * v.yz / v.x));
+	return length(vec3(delta,delta*v.yz/v.x));
 }
 
 vec4 cast_vec(vec3 o, vec3 v, float range){
@@ -66,18 +66,18 @@ vec4 cast_vec(vec3 o, vec3 v, float range){
 	float xdist = cast_comp(v.xyz, o.x, sx, mx);
 	float ydist = cast_comp(v.yxz, o.y, sy, my);
 	float zdist = cast_comp(v.zxy, o.z, sz, mz);
-
+	
 	// while loops are not allowed, so we have to use
 	// a for loop with a fixed max number of iterations
 	for(int i = 0; i < 1000; i++){
 		// Find the next closest cell boundary
 		// and increment distances appropriately
-		if(xdist < ydist && xdist < zdist){
+		if(xdist <= ydist && xdist <= zdist){
 			dim = 1.0*sx;
 			mx += sx;
 			distance = xdist;
 			xdist += deltas.x;
-		}else if(ydist < xdist && ydist < zdist){
+		}else if(ydist <= xdist && ydist <= zdist){
 			dim = 2.0*sy;
 			my += sy;
 			distance = ydist;

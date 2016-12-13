@@ -11,99 +11,93 @@ function getFragShader(origin, look, resolution, scale, dims, map){
 		return map[z * dims.x * dims.y + y * dims.x + x];
 	}
 	
-	function cast_vec(point, vector, range) {
+	function cast_vec(o, v, range) {
 		"use strict";
-		var xc = vector[0],
-			yc = vector[1],
-			zc = vector[2];
 
 		// Starting from the player, we find the nearest horizontal and vertical gridlines. We move to whichever is closer and check for a wall (inspect). Then we repeat until we've traced the entire length of each ray.
 
 		var mx, my, mz, sx, sy, sz, dx, dy, dz,
 			xdelta, ydelta, zdelta,
 			xdist, ydist, zdist,
-			value, dim,
-			x = point[0],
-			y = point[1],
-			z = point[2],
+			value, dim, i,
 			distance = 0;
 			
 		// Inverting the elements of a normalized vector
 		// gives the distance you have to move along that
 		// vector to hit a cell boundary perpendicular
 		// to that dimension.
-		xdelta = Math.abs(1/xc);
-		ydelta = Math.abs(1/yc);
-		zdelta = Math.abs(1/zc);
+		xdelta = Math.abs(1/v.x);
+		ydelta = Math.abs(1/v.y);
+		zdelta = Math.abs(1/v.z);
 
-		if(xc > 0){
+		if(v.x > 0){
 			sx = 1;
-			mx = Math.floor(x);
-			dx = mx + 1 - x;
+			mx = Math.floor(o.x);
+			dx = mx + 1 - o.x;
 		}else{
 			sx = -1;
-			mx = Math.ceil(x - 1);
-			dx = mx - x;
+			mx = Math.ceil(o.x - 1);
+			dx = mx - o.x;
 		}
-		dy = dx * (yc/xc);
-		dz = dx * (zc/xc);
+		dy = dx * (v.y/v.x);
+		dz = dx * (v.z/v.x);
 		xdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
-		if(yc > 0){
+		if(v.y > 0){
 			sy = 1;
-			my = Math.floor(y);
-			dy = my + 1 - y;
+			my = Math.floor(o.y);
+			dy = my + 1 - o.y;
 		}else{
 			sy = -1;
-			my = Math.ceil(y - 1);
-			dy = my - y;
+			my = Math.ceil(o.y - 1);
+			dy = my - o.y;
 		}
-		dx = dy * (xc/yc);
-		dz = dy * (zc/yc);
+		dx = dy * (v.x/v.y);
+		dz = dy * (v.z/v.y);
 		ydist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 		
-		if(zc > 0){
+		if(v.z > 0){
 			sz = 1;
-			mz = Math.floor(z);
-			dz = mz + 1 - z;
+			mz = Math.floor(o.z);
+			dz = mz + 1 - o.z;
 		}else{
 			sz = -1;
-			mz = Math.ceil(z - 1);
-			dz = mz - z;
+			mz = Math.ceil(o.z - 1);
+			dz = mz - o.z;
 		}
-		dx = dz * (xc/zc);
-		dy = dz * (yc/zc);
+		dx = dz * (v.x/v.z);
+		dy = dz * (v.y/v.z);
 		zdist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
-		do {
-			switch(Math.min(xdist, ydist, zdist)){
-			case xdist:
+		for(i = 0; i < 100000; i++) {
+			if(xdist <= ydist && xdist <= zdist){		
 				dim = 0;
 				mx += sx;
 				distance = xdist;
 				xdist += xdelta;
-				break;
-			case ydist:
+			}else if(ydist <= xdist && ydist <= zdist){
 				dim = 1;
 				my += sy;
 				distance = ydist;
 				ydist += ydelta;
-				break;
-			case zdist:
+			}else{
 				dim = 2;
 				mz += sz;
 				distance = zdist;
 				zdist += zdelta;
+			}
+
+			value = get_cell(mx, my, mz);
+			if(value != 0 || distance >= range){
 				break;
 			}
-			value = get_cell(mx, my, mz);
-		} while(value === 0 && distance < range);
+		}
 
 		return {
-			x: x + distance * xc,
-			y: y + distance * yc,
-			z: z + distance * zc,
-			vector: vector,
+			x: o.x + distance * v.x,
+			y: o.y + distance * v.y,
+			z: o.z + distance * v.z,
+			vector: [v.x,v.y,v.z],
 			dimension: dim,
 			value: value,
 			distance: distance,
@@ -117,9 +111,8 @@ function getFragShader(origin, look, resolution, scale, dims, map){
 		var tsin = Math.sin(theta);
 		var pcos = Math.cos(phi);
 		var psin = Math.sin(phi);
-		return cast_vec(
-			[origin.x, origin.y, origin.z],
-			[tcos*pcos, tsin*pcos, psin], 10
+		return cast_vec(origin,
+			{x:tcos*pcos, y:tsin*pcos, z:psin}, 10
 		);
 	};
 }
