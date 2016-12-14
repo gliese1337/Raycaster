@@ -8,40 +8,47 @@ var Maze = (function(){
 		return list[rand(list.length)];
 	};
 		
-	function generate(xsize, ysize, zsize){
-		var i, x, y, z, nx, ny, nz,
-			grid, ylevel, xlevel,
+	function generate(xsize, ysize, zsize, wsize) {
+		var i, x, y, z, w, nx, ny, nz, nw,
+			grid, zlevel, ylevel, xlevel,
 			cell, cells, index, dirs, safe;
 
 		
-		function isSafe(x, y, z){
-			return 6 == (grid[z][y][x] +
-					grid[z][y][(x+1)%xsize] +
-					grid[z][y][(x+xsize-1)%xsize] +
-					grid[z][(y+1)%ysize][x] +
-					grid[z][(y+ysize-1)%ysize][x] +
-					grid[(z+1)%zsize][y][x] +
-					grid[(z+zsize-1)%zsize][y][x]);				
+		function isSafe(x, y, z, w){
+			return 8 == (grid[w][z][y][x] +
+					grid[w][z][y][(x+1)%xsize] +
+					grid[w][z][y][(x+xsize-1)%xsize] +
+					grid[w][z][(y+1)%ysize][x] +
+					grid[w][z][(y+ysize-1)%ysize][x] +
+					grid[w][(z+1)%zsize][y][x] +
+					grid[w][(z+zsize-1)%zsize][y][x] +
+					grid[(w+1)%wsize][z][y][x] +
+					grid[(w+wsize-1)%wsize][z][y][x]);				
 		}
 
 		console.log("Generating Grid");
 		grid = [];
-		for (z = 0; z < zsize; z++){
-			ylevel = [];
-			for (y = 0; y < ysize; y++) {
-				xlevel = [];
-				for (x = 0; x < xsize; x++) { xlevel.push(1); }
-				ylevel.push(xlevel);
+		for(w = 0; w < wsize; w++){
+			zlevel = []
+			for (z = 0; z < zsize; z++){
+				ylevel = [];
+				for (y = 0; y < ysize; y++) {
+					xlevel = [];
+					for (x = 0; x < xsize; x++) { xlevel.push(1); }
+					ylevel.push(xlevel);
+				}
+				zlevel.push(ylevel)
 			}
-			grid.push(ylevel);
+			grid.push(zlevel);
 		}
 		
 		console.log("Generating Maze");
 		nx = rand(xsize);
 		ny = rand(ysize);
 		nz = rand(zsize);
-		grid[nz][ny][nx] = 0;
-		cells = [{x:nx,y:ny,z:nz}];
+		nw = rand(wsize);
+		grid[nw][nz][ny][nx] = 0;
+		cells = [{x:nx,y:ny,z:nz,w:nw}];
 
 		while (cells.length > 0) {
 			//Grab a random empty cell
@@ -51,20 +58,24 @@ var Maze = (function(){
 			nx = cell.x;
 			ny = cell.y;
 			nz = cell.z;
+			nw = cell.w;
 			
 			//Check if there are any directions in which we can carve out a space
 			//without running into another empty cell, which would create a cycle
 			safe = [];
 
-			if(isSafe((nx+1)%xsize, ny, nz)){ safe.push("R"); }
-			if(isSafe((nx+xsize-1)%xsize, ny, nz)){ safe.push("L"); }
+			if(isSafe((nx+1)%xsize, ny, nz, nw)){ safe.push("R"); }
+			if(isSafe((nx+xsize-1)%xsize, ny, nz, nw)){ safe.push("L"); }
 			
-			if(isSafe(nx, (ny+1)%ysize, nz)){ safe.push("U"); }
-			if(isSafe(nx, (ny+ysize-1)%ysize, nz)){ safe.push("D"); }
+			if(isSafe(nx, (ny+1)%ysize, nz, nw)){ safe.push("U"); }
+			if(isSafe(nx, (ny+ysize-1)%ysize, nz, nw)){ safe.push("D"); }
 			
-			if(isSafe(nx, ny, (nz+1)%zsize)){ safe.push("F"); }
-			if(isSafe(nx, ny, (nz+zsize-1)%zsize)){ safe.push("B"); }
-
+			if(isSafe(nx, ny, (nz+1)%zsize, nw)){ safe.push("F"); }
+			if(isSafe(nx, ny, (nz+zsize-1)%zsize, nw)){ safe.push("B"); }
+			
+			if(isSafe(nx, ny, nz, (nw+1)%wsize)){ safe.push("A"); }
+			if(isSafe(nx, ny, nz, (nw+wsize-1)%wsize)){ safe.push("K"); }
+			
 			if(safe.length == 0){
 				cells.splice(index, 1);
 			}else{
@@ -82,10 +93,14 @@ var Maze = (function(){
 					break;
 				case 'B': nz = (nz - 1 + zsize) % zsize;
 					break;
+				case 'A': nw = (nw + 1) % wsize;
+					break;
+				case 'K': nw = (nw - 1 + wsize) % wsize;
+					break;
 				}
 
-				grid[nz][ny][nx] = 0;
-				cells.push({ x: nx, y: ny, z: nz });
+				grid[nw][nz][ny][nx] = 0;
+				cells.push({ x: nx, y: ny, z: nz, w: nw });
 			}
 		}
 		
@@ -95,23 +110,24 @@ var Maze = (function(){
 	
 	function Maze(size){
 		this.size = size;
-		this.grid = generate(size,size,size);
+		this.grid = generate(size,size,size,size);
 	}
 	
-	Maze.prototype.get = function(x,y,z){
-		return this.grid[z][y][x];
+	Maze.prototype.get = function(x,y,z,w){
+		return this.grid[w][z][y][x];
 	}
 	
 	Maze.prototype.flatten = function(){
 		var i = 0,
-			x, y, z,
+			x, y, z, w,
 			size = this.size,
 			wallgrid = [];
 
 		for(x = 0; x < size; x++)
 		for(y = 0; y < size; y++)
 		for(z = 0; z < size; z++)
-			wallgrid[i++] = this.grid[z][y][x];
+		for(w = 0; w < size; w++)
+			wallgrid[i++] = this.grid[w][z][y][x];
 		
 		return wallgrid;
 	}

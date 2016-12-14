@@ -1,9 +1,10 @@
-var SIZE = 8;
+var SIZE = 5;
 
 function Controls() {
 	"use strict";
-	this.codes  = { 32: 'fwd', 37: 'left', 39: 'rgt', 38: 'up', 40: 'down' };
-	this.states = { 'fwd': false, 'left': false, 'rgt': false, 'up': false, 'down': false };
+	this.codes  = { 32: 'fwd', 37: 'lft', 39: 'rgt', 38: 'up', 40: 'dwn' };
+	this.states = { 'fwd': false, 'lft': false, 'rgt': false, 'up': false, 'dwn': false };
+
 	document.addEventListener('keydown', this.onKey.bind(this, true), false);
 	document.addEventListener('keyup', this.onKey.bind(this, false), false);
 }
@@ -17,50 +18,43 @@ Controls.prototype.onKey = function(val, e) {
 	e.stopPropagation && e.stopPropagation();
 };
 
-function Player(x, y, z) {
+function Player(x, y, z, w){
 	"use strict";
 	this.x = x;
 	this.y = y;
 	this.z = z;
+	this.w = w;
+
 	this.speed = 0;
-	this.rgt = {x:1,y:0,z:0};
-	this.up = {x:0,y:1,z:0};
-	this.fwd = {x:0,y:0,z:1};
+
+	this.rgt = {x:1,y:0,z:0,w:0};
+	this.up = {x:0,y:1,z:0,w:0};
+	this.fwd = {x:0,y:0,z:1,w:0};
+	this.ana = {x:0,y:0,z:0,w:1};
 }
 
+//Rotate a vector in the plane defined by itself and another vector
 function vec_rot(v, k, t){
 	var cos = Math.cos(t),
 		sin = Math.sin(t);
 	
-	//v' = v*cos(t) + (k x v)sin(t) + k(k . v)(1 - cos(t))
-	//When the vectors are orthgonal, the dot product is always 0,
-	//so we can drop the last term
 	return {
-		x: v.x*cos + (v.y*k.z-v.z*k.y)*sin,
-		y: v.y*cos + (v.z*k.x-v.x*k.z)*sin,
-		z: v.z*cos + (v.x*k.y-v.y*k.x)*sin
+		x: v.x*cos + k.x*sin,
+		y: v.y*cos + k.y*sin,
+		z: v.z*cos + k.z*sin,
+		w: v.w*cos + k.w*sin
 	};
 }
 
-Player.prototype.pitch = function(angle){
-	//rotate up and fwd around rgt
-	"use strict";
-	this.up = vec_rot(this.up, this.rgt, angle);
-	this.fwd = vec_rot(this.fwd, this.rgt, angle);
-};
+var planes = {x:'rgt',y:'up',z:'fwd',w:'ana'};
 
-Player.prototype.roll = function(angle){
-	//rotate up and rgt around fwd
+Player.prototype.rotate = function(v,k,angle){
 	"use strict";
-	this.rgt = vec_rot(this.rgt, this.fwd, angle);
-	this.up = vec_rot(this.up, this.fwd, angle);
-};
-
-Player.prototype.yaw = function(angle){
-	//rotate rgt and fwd around up
-	"use strict";
-	this.rgt = vec_rot(this.rgt, this.up, angle);
-	this.fwd = vec_rot(this.fwd, this.up, angle); 
+	v = planes[v];
+	k = planes[k];
+	this[v] = vec_rot(this[v], this[k], angle);
+	this[k] = vec_rot(this[k], this[v], -angle);
+	console.log("Rotate",v,k);
 };
 
 Player.prototype.walk = function(distance, map) {
@@ -68,33 +62,28 @@ Player.prototype.walk = function(distance, map) {
 	var dx = this.fwd.x * distance;
 	var dy = this.fwd.y * distance;
 	var dz = this.fwd.z * distance;
-	var nx = (((this.x + dx) % SIZE) + SIZE) % SIZE;
-	var ny = (((this.y + dy) % SIZE) + SIZE) % SIZE;
-	var nz = (((this.z + dz) % SIZE) + SIZE) % SIZE;
-	/*if (map[Math.floor(nx)*64 + Math.floor(this.y)*SIZE + Math.floor(this.z)] === 0) this.x = nx;
-	if (map[Math.floor(this.x)*64 + Math.floor(ny)*SIZE + Math.floor(this.z)] === 0) this.y = ny;
-	if (map[Math.floor(this.x)*64 + Math.floor(this.y)*SIZE + Math.floor(nz)] === 0) this.z = nz;
-	*/
-	this.x = nx;
-	this.y = ny;
-	this.z = nz;
+	var dw = this.fwd.w * distance;
+	this.x = (((this.x + dx) % SIZE) + SIZE) % SIZE;
+	this.y = (((this.y + dy) % SIZE) + SIZE) % SIZE;
+	this.z = (((this.z + dz) % SIZE) + SIZE) % SIZE;
+	this.w = (((this.w + dw) % SIZE) + SIZE) % SIZE;
 };
 
 Player.prototype.update = function(controls, map, seconds) {
 	var moved = false;
 	if (controls.rgt){
-		this.yaw(-seconds * Math.PI/6);
+		this.rotate('z', 'x', seconds * Math.PI/6);
 		moved = true;
-	} else if (controls.left){
-		this.yaw(seconds * Math.PI/6);
+	} else if (controls.lft){
+		this.rotate('x', 'z', seconds * Math.PI/6);
 		moved = true;
 	}
 	
 	if (controls.up){
-		this.pitch(seconds * Math.PI/6);
+		this.rotate('z', 'y', seconds * Math.PI/6);
 		moved = true;
-	} else if (controls.down){
-		this.pitch(-seconds * Math.PI/6);
+	} else if (controls.dwn){
+		this.rotate('y', 'z', seconds * Math.PI/6);
 		moved = true;
 	}
 	
@@ -183,6 +172,7 @@ function Camera(canvas, map, hfov, textures){
 		this.rgtLoc = gl.getUniformLocation(program, "u_rgt");
 		this.upLoc = gl.getUniformLocation(program, "u_up");
 		this.fwdLoc = gl.getUniformLocation(program, "u_fwd");
+		this.anaLoc = gl.getUniformLocation(program, "u_ana");
 
 		// Set Uniforms
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
@@ -216,29 +206,31 @@ function Camera(canvas, map, hfov, textures){
 
 Camera.prototype.render = function(player){
 	var gl = this.gl;
-	gl.uniform3f(this.originLoc, player.x, player.y, player.z);
-	gl.uniform3f(this.rgtLoc, player.rgt.x, player.rgt.y, player.rgt.z);
-	gl.uniform3f(this.upLoc, player.up.x, player.up.y, player.up.z);
-	gl.uniform3f(this.fwdLoc, player.fwd.x, player.fwd.y, player.fwd.z);
+	gl.uniform4f(this.originLoc, player.x, player.y, player.z, player.w);
+	gl.uniform4f(this.rgtLoc, player.rgt.x, player.rgt.y, player.rgt.z, player.rgt.w);
+	gl.uniform4f(this.upLoc, player.up.x, player.up.y, player.up.z, player.up.w);
+	gl.uniform4f(this.fwdLoc, player.fwd.x, player.fwd.y, player.fwd.z, player.fwd.w);
+	gl.uniform4f(this.anaLoc, player.ana.x, player.ana.y, player.ana.z, player.ana.w);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
 
 function main(canvas){
 	"use strict";
 
-	var px, py, pz,
+	var px, py, pz, pw,
 		map = new Maze(SIZE);
 
 	start_loop:
 	for(px = 0; px < SIZE; px++)
 	for(py = 0; py < SIZE; py++)
 	for(pz = 0; pz < SIZE; pz++)
-		if(map.get(px,py,pz) === 0){ break start_loop; }
+	for(pw = 0; pw < SIZE; pw++)
+		if(map.get(px,py,pz,pw) === 0){ break start_loop; }
 
-	var player = new Player(px+.5, py+.5, pz+.5);
+	var player = new Player(px+.5, py+.5, pz+.5, pw+.5);
 	var controls = new Controls();
 	var camera = new Camera(canvas, map, Math.PI / 1.5,
-		["texture1.jpg","texture2.jpg","texture4.jpg"]);
+		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
 	
 	var fps = [];
 	var loop = new GameLoop(function(seconds){
