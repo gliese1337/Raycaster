@@ -1,3 +1,8 @@
+var SIZE = 5,
+	SIZE2 = SIZE*SIZE,
+	SIZE3 = SIZE*SIZE2,
+	SIZE4 = SIZE*SIZE3;
+
 function Controls() {
 	"use strict";
 	this.codes  = { 32: 'fwd', 37: 'lft', 39: 'rgt', 38: 'up', 40: 'dwn', 88: 'x', 89: 'y', 90: 'z', 87: 'w' };
@@ -123,10 +128,10 @@ Player.prototype.walk = function(distance, map) {
 	var dy = this.fwd.y * distance;
 	var dz = this.fwd.z * distance;
 	var dw = this.fwd.w * distance;
-	this.x = (((this.x + dx) % 5) + 5) % 5;
-	this.y = (((this.y + dy) % 5) + 5) % 5;
-	this.z = (((this.z + dz) % 5) + 5) % 5;
-	this.w = (((this.w + dw) % 5) + 5) % 5;
+	this.x = (((this.x + dx) % SIZE) + SIZE) % SIZE;
+	this.y = (((this.y + dy) % SIZE) + SIZE) % SIZE;
+	this.z = (((this.z + dz) % SIZE) + SIZE) % SIZE;
+	this.w = (((this.w + dw) % SIZE) + SIZE) % SIZE;
 };
 
 Player.prototype.update = function(controls, map, seconds) {
@@ -278,22 +283,22 @@ function main(canvas){
 
 	var map = [];
 
-	for(var i = 0; i < 625; i++){
+	for(var i = 0; i < SIZE4; i++){
 		map[i] = Math.random() < 0.05 ? 1 : 0;
 	}
 
 	var px = 0, py = 0, pz = 0, pw = 0;
-	start_loop: for(;px < 4096; px+=625){
-		for(;py < 125; py+=25){
-			for(;pz < 25; pz+=5){
-				for(;pw < 5; pw++){
+	start_loop: for(;px < SIZE4; px+=SIZE3){
+		for(;py < SIZE3; py+=SIZE2){
+			for(;pz < SIZE2; pz+=SIZE){
+				for(;pw < SIZE; pw++){
 					if(map[px + py + pz + pw] === 0){ break start_loop; }
 				}
 			}
 		}
 	}
 
-	var player = new Player(px/625+.5, py/25+.5, pz/5+.5, pw+.5);
+	var player = new Player(px/SIZE3+.5, py/SIZE2+.5, pz/SIZE+.5, pw+.5);
 	var controls = new Controls();
 	var camera = new Camera(canvas, map, Math.PI / 2, Math.PI / 2.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);

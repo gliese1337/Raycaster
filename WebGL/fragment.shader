@@ -1,4 +1,10 @@
 precision mediump float;
+
+const int SIZE = 5;
+const int SIZE2 = SIZE*SIZE;
+const int SIZE3 = SIZE*SIZE2;
+const int SIZE4 = SIZE*SIZE3;
+
 uniform vec2 u_resolution;
 uniform vec2 u_scale;
 uniform vec4 u_origin;
@@ -6,27 +12,28 @@ uniform vec4 u_rgt;
 uniform vec4 u_up;
 uniform vec4 u_fwd;
 uniform vec4 u_ana;
-uniform int u_map[625];
+
+uniform int u_map[SIZE4];
 uniform sampler2D u_textures[4];
 
 int get_cell(int x, int y, int z, int w){
-	x = int(mod(float(x),5.0));
-	y = int(mod(float(y),5.0));
-	z = int(mod(float(z),5.0));
-	w = int(mod(float(w),5.0));
+	x = int(mod(float(x),float(SIZE)));
+	y = int(mod(float(y),float(SIZE)));
+	z = int(mod(float(z),float(SIZE)));
+	w = int(mod(float(w),float(SIZE)));
 
 	// have to use constant indexing...
 	// All of this is just to get x, y, & z
 	// into loop indices to satisfy the compiler
-	for(int ix = 0; ix < 5; ix++){
+	for(int ix = 0; ix < SIZE; ix++){
 		if(ix != x){ continue; }
-		for(int iy = 0; iy < 5; iy++){
+		for(int iy = 0; iy < SIZE; iy++){
 			if(iy != y){ continue; }
-			for(int iz = 0; iz < 5; iz++){
+			for(int iz = 0; iz < SIZE; iz++){
 				if(iz != z){ continue; }
-				for(int iw = 0; iw < 5; iw++){
+				for(int iw = 0; iw < SIZE; iw++){
 					if(iw != w){ continue; }
-					return u_map[ix*125+iy*25+iz*5+iw];
+					return u_map[ix*SIZE3+iy*SIZE2+iz*SIZE+iw];
 				}
 			}
 		}
