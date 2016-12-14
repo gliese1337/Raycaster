@@ -1,18 +1,82 @@
 function Controls() {
 	"use strict";
-	this.codes  = { 32: 'fwd', 37: 'lft', 39: 'rgt', 38: 'up', 40: 'dwn' };
-	this.states = { 'fwd': false, 'lft': false, 'rgt': false, 'up': false, 'dwn': false };
-	document.addEventListener('keydown', this.onKey.bind(this, true), false);
-	document.addEventListener('keyup', this.onKey.bind(this, false), false);
+	this.codes  = { 32: 'fwd', 37: 'lft', 39: 'rgt', 38: 'up', 40: 'dwn', 88: 'x', 89: 'y', 90: 'z', 87: 'w' };
+	this.keys = { fwd: 0, lft: 0, rgt: 0, up: 0, dwn: 0, x: 0, y: 0, z: 0, w: 0 };
+	this.states = { 'fwd': false,
+		'rotu': false, 'rotd': false, 'vv': 'z', 'kv': 'y',
+		'rotl': false, 'rotr': false, 'vh': 'x', 'kh': 'z'
+	};
+	document.addEventListener('keydown', this.onKey.bind(this, 1), false);
+	document.addEventListener('keyup', this.onKey.bind(this, 0), false);
 }
 
 Controls.prototype.onKey = function(val, e) {
 	"use strict";
-	var state = this.codes[e.keyCode];
-	if (typeof state === 'undefined') return;
-	this.states[state] = val;
+	var states, keys, count,
+		key = this.codes[e.keyCode];
+	if (typeof key === 'undefined') return;
 	e.preventDefault && e.preventDefault();
 	e.stopPropagation && e.stopPropagation();
+
+	keys = this.keys;
+	keys[key] = val;
+	
+	states = this.states;
+	states.fwd = keys.fwd;
+	states.rotu = keys.up && !keys.dwn;
+	states.rotd = !keys.up && keys.dwn;
+	states.rotl = keys.lft && !keys.rgt;
+	states.rotr = !keys.lft && keys.rgt;
+	
+	//Defaults: x, or no keys
+	states.vv = 'z';
+	states.kv = 'y';
+	states.vh = 'z';
+	states.kh = 'x';
+	
+	count = keys.x + keys.y + keys.z + keys.w;
+	if(count == 1){
+		if(keys.y){
+			states.vv = 'y';
+			states.kv = 'w';
+		}else if(keys.z){
+			states.vh = 'x';
+			states.kh = 'y';
+		}
+	}else if(count == 2){
+		if(keys.x){
+			states.vv = 'x';
+			if(keys.y){
+				states.kv = 'y';
+				states.vh = 'z';
+				states.kh = 'w';
+			}else if(keys.z){
+				states.kv = 'z';
+				states.vh = 'y';
+				states.kh = 'w';
+			}else if(keys.w){
+				states.kv = 'w';
+				states.vh = 'y';
+				states.kh = 'z';
+			}
+		}else if(keys.y){
+			states.vv = 'y';
+			if(keys.z){
+				states.kv = 'z';
+				states.vh = 'x';
+				states.kh = 'w';
+			}else if(keys.w){
+				states.kv = 'w';
+				states.vh = 'x';
+				states.kh = 'z';
+			}
+		}else{
+			states.vv = 'z'
+			states.kv = 'w';
+			states.vh = 'x';
+			states.kh = 'y';
+		}
+	}
 };
 
 function Player(x, y, z, w){
@@ -44,7 +108,6 @@ function vec_rot(v, k, t){
 }
 
 var planes = {x:'rgt',y:'up',z:'fwd',w:'ana'};
-
 Player.prototype.rotate = function(v,k,angle){
 	"use strict";
 	v = planes[v];
@@ -68,19 +131,20 @@ Player.prototype.walk = function(distance, map) {
 
 Player.prototype.update = function(controls, map, seconds) {
 	var moved = false;
-	if (controls.rgt){
-		this.rotate('z', 'x', seconds * Math.PI/6);
+
+	if(controls.rotu){
+		this.rotate(controls.vv, controls.kv, seconds * Math.PI/6);
 		moved = true;
-	} else if (controls.lft){
-		this.rotate('x', 'z', seconds * Math.PI/6);
+	}else if(controls.rotd){
+		this.rotate(controls.kv, controls.vv, seconds * Math.PI/6);
 		moved = true;
 	}
 	
-	if (controls.up){
-		this.rotate('z', 'y', seconds * Math.PI/6);
+	if(controls.rotr){
+		this.rotate(controls.vh, controls.kh, seconds * Math.PI/6);
 		moved = true;
-	} else if (controls.dwn){
-		this.rotate('y', 'z', seconds * Math.PI/6);
+	}else if(controls.rotl){
+		this.rotate(controls.kh, controls.vh, seconds * Math.PI/6);
 		moved = true;
 	}
 	
