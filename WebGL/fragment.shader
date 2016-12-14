@@ -1,6 +1,6 @@
 precision mediump float;
 
-const int SIZE = 5;
+const int SIZE = 13;
 const int SIZE2 = SIZE*SIZE;
 const int SIZE3 = SIZE*SIZE2;
 const int SIZE4 = SIZE*SIZE3;
@@ -13,27 +13,35 @@ uniform vec4 u_up;
 uniform vec4 u_fwd;
 uniform vec4 u_ana;
 
-uniform int u_map[SIZE4];
+uniform int u_map[SIZE4/32];
 uniform sampler2D u_textures[4];
 
+int get_bit(int cell, int shift){
+	float shifted = floor(float(cell) / pow(2.0, float(shift)));
+	if(mod(shifted, 2.0) == 0.0){ return 0; }
+	return 1;
+}
+
 int get_cell(int x, int y, int z, int w){
-	x = int(mod(float(x),float(SIZE)));
-	y = int(mod(float(y),float(SIZE)));
-	z = int(mod(float(z),float(SIZE)));
+	x = int(mod(float(x),float(SIZE))) * SIZE3;
+	y = int(mod(float(y),float(SIZE))) * SIZE2;
+	z = int(mod(float(z),float(SIZE))) * SIZE;
 	w = int(mod(float(w),float(SIZE)));
 
 	// have to use constant indexing...
 	// All of this is just to get x, y, & z
 	// into loop indices to satisfy the compiler
-	for(int ix = 0; ix < SIZE; ix++){
+	for(int ix = 0; ix < SIZE4; ix+=SIZE3){
 		if(ix != x){ continue; }
-		for(int iy = 0; iy < SIZE; iy++){
+		for(int iy = 0; iy < SIZE3; iy+=SIZE2){
 			if(iy != y){ continue; }
-			for(int iz = 0; iz < SIZE; iz++){
+			for(int iz = 0; iz < SIZE2; iz+=SIZE){
 				if(iz != z){ continue; }
 				for(int iw = 0; iw < SIZE; iw++){
 					if(iw != w){ continue; }
-					return u_map[ix*SIZE3+iy*SIZE2+iz*SIZE+iw];
+					int cell = u_map[(ix+iy+iz+iw)/32];
+					int shift = int(mod(float(ix+iy+iz+iw),32.0));
+					return get_bit(cell, shift);
 				}
 			}
 		}

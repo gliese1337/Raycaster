@@ -1,4 +1,4 @@
-var SIZE = 5,
+var SIZE = 13,
 	SIZE2 = SIZE*SIZE,
 	SIZE3 = SIZE*SIZE2,
 	SIZE4 = SIZE*SIZE3;
@@ -186,6 +186,19 @@ GameLoop.prototype.start = function() {
 	});
 };
 
+function pack_bits(arr){
+	var i, j, acc,
+		n = [];
+	for(i = 0; i < arr.length;){
+		acc = 0;
+		for(j = 31; j >= 0; j--,i++){
+			acc = acc | arr[i] << j;
+		}
+		n.push(acc);
+	}
+	return n;
+}
+
 function Camera(canvas, map, hfov, vfov, textures){
 	// Get A WebGL context
 	var gl = canvas.getContext("webgl");
@@ -241,7 +254,7 @@ function Camera(canvas, map, hfov, vfov, textures){
 		// Set Uniforms
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
 		gl.uniform2f(scaleLoc, hfov, vfov);
-		gl.uniform1iv(mapLoc, map);
+		gl.uniform1iv(mapLoc, pack_bits(map));
 		gl.uniform1iv(textureLoc, textures.map(function(_,i){ return i; }));
 		
 		//load textures
