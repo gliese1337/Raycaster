@@ -1,7 +1,7 @@
 function Controls() {
 	"use strict";
-	this.codes  = { 32: 'forward', 37: 'left', 39: 'right', 38: 'up', 40: 'down' };
-	this.states = { 'forward': false, 'left': false, 'right': false, 'up': false, 'down': false };
+	this.codes  = { 32: 'fwd', 37: 'left', 39: 'rgt', 38: 'up', 40: 'down' };
+	this.states = { 'fwd': false, 'left': false, 'rgt': false, 'up': false, 'down': false };
 	document.addEventListener('keydown', this.onKey.bind(this, true), false);
 	document.addEventListener('keyup', this.onKey.bind(this, false), false);
 }
@@ -21,9 +21,9 @@ function Player(x, y, z) {
 	this.y = y;
 	this.z = z;
 	this.speed = 0;
-	this.right = {x:1,y:0,z:1};
+	this.rgt = {x:1,y:0,z:0};
 	this.up = {x:0,y:1,z:0};
-	this.forward = {x:0,y:0,z:1};
+	this.fwd = {x:0,y:0,z:1};
 }
 
 function vec_rot(v, k, t){
@@ -41,31 +41,31 @@ function vec_rot(v, k, t){
 }
 
 Player.prototype.pitch = function(angle){
-	//rotate up and forward around right
+	//rotate up and fwd around rgt
 	"use strict";
-	this.up = vec_rot(this.up, this.right, angle);
-	this.forward = vec_rot(this.forward, this.right, angle);
+	this.up = vec_rot(this.up, this.rgt, angle);
+	this.fwd = vec_rot(this.fwd, this.rgt, angle);
 };
 
 Player.prototype.roll = function(angle){
-	//rotate up and right around forward
+	//rotate up and rgt around fwd
 	"use strict";
-	this.right = vec_rot(this.right, this.forward, angle);
-	this.up = vec_rot(this.up, this.forward, angle);
+	this.rgt = vec_rot(this.rgt, this.fwd, angle);
+	this.up = vec_rot(this.up, this.fwd, angle);
 };
 
 Player.prototype.yaw = function(angle){
-	//rotate right and forward around up
+	//rotate rgt and fwd around up
 	"use strict";
-	this.right = vec_rot(this.right, this.up, angle);
-	this.forward = vec_rot(this.forward, this.up, angle); 
+	this.rgt = vec_rot(this.rgt, this.up, angle);
+	this.fwd = vec_rot(this.fwd, this.up, angle); 
 };
 
 Player.prototype.walk = function(distance, map) {
 	"use strict";
-	var dx = this.forward.x * distance;
-	var dy = this.forward.y * distance;
-	var dz = this.forward.z * distance;
+	var dx = this.fwd.x * distance;
+	var dy = this.fwd.y * distance;
+	var dz = this.fwd.z * distance;
 	var nx = (((this.x + dx) % 8) + 8) % 8;
 	var ny = (((this.y + dy) % 8) + 8) % 8;
 	var nz = (((this.z + dz) % 8) + 8) % 8;
@@ -80,11 +80,11 @@ Player.prototype.walk = function(distance, map) {
 
 Player.prototype.update = function(controls, map, seconds) {
 	var moved = false;
-	if (controls.right){
-		this.roll(-seconds * Math.PI/6);
+	if (controls.rgt){
+		this.yaw(-seconds * Math.PI/6);
 		moved = true;
 	} else if (controls.left){
-		this.roll(seconds * Math.PI/6);
+		this.yaw(seconds * Math.PI/6);
 		moved = true;
 	}
 	
@@ -96,7 +96,7 @@ Player.prototype.update = function(controls, map, seconds) {
 		moved = true;
 	}
 	
-	if (controls.forward){
+	if (controls.fwd){
 		if(this.speed < 10){ this.speed += .5*seconds; }
 	} else {
 		if(this.speed < .01){ this.speed = 0; }
@@ -129,14 +129,16 @@ GameLoop.prototype.start = function() {
 	});
 };
 
-function Camera(canvas, map, hfov, vfov, textures){
+function Camera(canvas, map, hfov, textures){
 	// Get A WebGL context
 	var gl = canvas.getContext("webgl");
 	if (!gl){ throw new Error("No WebGL Support"); }
 	
 	this.gl = gl;
-	this.lookLoc = null;
 	this.originLoc = null;
+	this.rgtLoc = null;
+	this.upLoc = null;
+	this.fwdLoc = null;
 	
 	// Create a buffer and put a single rectangle in it
 	// (2 triangles)
@@ -171,18 +173,18 @@ function Camera(canvas, map, hfov, vfov, textures){
 
 		// look up uniform locations
 		var resLoc = gl.getUniformLocation(program, "u_resolution");
-		var scaleLoc = gl.getUniformLocation(program, "u_scale");
+		var depthLoc = gl.getUniformLocation(program, "u_depth");
 		var mapLoc = gl.getUniformLocation(program, "u_map");
 		var textureLoc = gl.getUniformLocation(program, "u_textures");
 		
 		this.originLoc = gl.getUniformLocation(program, "u_origin");
-		this.rightLoc = gl.getUniformLocation(program, "u_right");
+		this.rgtLoc = gl.getUniformLocation(program, "u_rgt");
 		this.upLoc = gl.getUniformLocation(program, "u_up");
-		this.forwardLoc = gl.getUniformLocation(program, "u_forward");
+		this.fwdLoc = gl.getUniformLocation(program, "u_fwd");
 
 		// Set Uniforms
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
-		gl.uniform2f(scaleLoc, hfov, vfov);
+		gl.uniform1f(depthLoc, canvas.width/(2*Math.tan(hfov/2)));
 		gl.uniform1iv(mapLoc, map);
 		gl.uniform1iv(textureLoc, textures.map(function(_,i){ return i; }));
 		
@@ -213,9 +215,9 @@ function Camera(canvas, map, hfov, vfov, textures){
 Camera.prototype.render = function(player){
 	var gl = this.gl;
 	gl.uniform3f(this.originLoc, player.x, player.y, player.z);
-	gl.uniform3f(this.rightLoc, player.right.x, player.right.y, player.right.z);
+	gl.uniform3f(this.rgtLoc, player.rgt.x, player.rgt.y, player.rgt.z);
 	gl.uniform3f(this.upLoc, player.up.x, player.up.y, player.up.z);
-	gl.uniform3f(this.forwardLoc, player.forward.x, player.forward.y, player.forward.z);
+	gl.uniform3f(this.fwdLoc, player.fwd.x, player.fwd.y, player.fwd.z);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
 
@@ -239,7 +241,7 @@ function main(canvas){
 
 	var player = new Player(px/64+.5, py/8+.5, pz+.5);
 	var controls = new Controls();
-	var camera = new Camera(canvas, map, Math.PI / 2, Math.PI / 2.5,
+	var camera = new Camera(canvas, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture4.jpg"]);
 	
 	var fps = [];

@@ -1,17 +1,23 @@
 precision mediump float;
+
+const int SIZE = 8;
+const int SIZE2 = SIZE*SIZE;
+const int SIZE3 = SIZE*SIZE2;
+
+uniform float u_depth;
 uniform vec2 u_resolution;
-uniform vec2 u_scale;
 uniform vec3 u_origin;
-uniform vec3 u_right;
+uniform vec3 u_rgt;
 uniform vec3 u_up;
-uniform vec3 u_forward;
-uniform int u_map[512];
-uniform sampler2D u_textures[6];
+uniform vec3 u_fwd;
+
+uniform int u_map[SIZE3];
+uniform sampler2D u_textures[3];
 
 int get_cell(int x, int y, int z){
-	x = int(mod(float(x),8.0));
-	y = int(mod(float(y),8.0));
-	z = int(mod(float(z),8.0));
+	x = int(mod(float(x),float(SIZE)));
+	y = int(mod(float(y),float(SIZE)));
+	z = int(mod(float(z),float(SIZE)));
 
 	// have to use constant indexing...
 	// All of this is just to get x, y, & z
@@ -22,7 +28,7 @@ int get_cell(int x, int y, int z){
 			if(iy != y){ continue; }
 			for(int iz = 0; iz < 8; iz++){
 				if(iz != z){ continue; }
-				return u_map[ix*64+iy*8+iz];
+				return u_map[ix*SIZE2+iy*SIZE+iz];
 			}
 		}
 	}
@@ -54,9 +60,9 @@ vec4 calc_tex(int dim, vec3 ray){
 	if(dim == 1){ return texture2D(u_textures[0], ray.yz); }
 	if(dim == 2){ return texture2D(u_textures[1], ray.xz); }
 	if(dim == 3){ return texture2D(u_textures[2], ray.xy); }
-	if(dim == -1){ return texture2D(u_textures[3], ray.yz); } 
-	if(dim == -2){ return texture2D(u_textures[4], ray.xz); }
-	return texture2D(u_textures[5], ray.xy);
+	if(dim == -1){ return texture2D(u_textures[0], ray.yz); } 
+	if(dim == -2){ return texture2D(u_textures[1], ray.xz); }
+	return texture2D(u_textures[2], ray.xy);
 }
 
 vec4 cast_vec(vec3 o, vec3 v, float range){
@@ -110,19 +116,20 @@ vec4 cast_vec(vec3 o, vec3 v, float range){
 		}
 	}
 
+	if(value == 0){
+		return vec4(1,1,1,1);
+	}
+
 	vec3 ray = o + distance *  v;
 	vec4 tex = calc_tex(dim, ray);
 	
-	float alpha = 1.0 - distance/range;
+	float dr = distance/range;
+	float alpha = 1.0 - dr*dr*dr*dr;
 	return vec4(tex.rgb, alpha);
 }
 
-void main(){
-	// convert clipspace to viewing angles
-	vec2 coords = gl_FragCoord.xy / u_resolution - 0.5;
-	vec2 angles = atan(u_scale * coords);
-	vec3 hray = u_forward*cos(angles.x) + u_right*sin(angles.x);
-	vec3 vray = u_forward*cos(angles.y) + u_up*sin(angles.y);
-	
-	gl_FragColor = cast_vec(u_origin, hray+vray, 10.0);
+void main(){vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
+	vec3 zoffset = u_fwd*u_depth;
+	vec3 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
+	gl_FragColor = cast_vec(u_origin, ray, 10.0);
 }
