@@ -1,3 +1,5 @@
+var SIZE = 8;
+
 function Controls() {
 	"use strict";
 	this.codes  = { 32: 'fwd', 37: 'left', 39: 'rgt', 38: 'up', 40: 'down' };
@@ -66,12 +68,12 @@ Player.prototype.walk = function(distance, map) {
 	var dx = this.fwd.x * distance;
 	var dy = this.fwd.y * distance;
 	var dz = this.fwd.z * distance;
-	var nx = (((this.x + dx) % 8) + 8) % 8;
-	var ny = (((this.y + dy) % 8) + 8) % 8;
-	var nz = (((this.z + dz) % 8) + 8) % 8;
-	/*if (map[Math.floor(nx)*64 + Math.floor(this.y)*8 + Math.floor(this.z)] === 0) this.x = nx;
-	if (map[Math.floor(this.x)*64 + Math.floor(ny)*8 + Math.floor(this.z)] === 0) this.y = ny;
-	if (map[Math.floor(this.x)*64 + Math.floor(this.y)*8 + Math.floor(nz)] === 0) this.z = nz;
+	var nx = (((this.x + dx) % SIZE) + SIZE) % SIZE;
+	var ny = (((this.y + dy) % SIZE) + SIZE) % SIZE;
+	var nz = (((this.z + dz) % SIZE) + SIZE) % SIZE;
+	/*if (map[Math.floor(nx)*64 + Math.floor(this.y)*SIZE + Math.floor(this.z)] === 0) this.x = nx;
+	if (map[Math.floor(this.x)*64 + Math.floor(ny)*SIZE + Math.floor(this.z)] === 0) this.y = ny;
+	if (map[Math.floor(this.x)*64 + Math.floor(this.y)*SIZE + Math.floor(nz)] === 0) this.z = nz;
 	*/
 	this.x = nx;
 	this.y = ny;
@@ -185,7 +187,7 @@ function Camera(canvas, map, hfov, textures){
 		// Set Uniforms
 		gl.uniform2f(resLoc, canvas.width, canvas.height);
 		gl.uniform1f(depthLoc, canvas.width/(2*Math.tan(hfov/2)));
-		gl.uniform1iv(mapLoc, map);
+		gl.uniform1iv(mapLoc, map.flatten());
 		gl.uniform1iv(textureLoc, textures.map(function(_,i){ return i; }));
 		
 		//load textures
@@ -224,22 +226,16 @@ Camera.prototype.render = function(player){
 function main(canvas){
 	"use strict";
 
-	var map = [];
+	var px, py, pz,
+		map = new Maze(SIZE);
 
-	for(var i = 0; i < 512; i++){
-		map[i] = Math.random() < 0.05 ? 1 : 0;
-	}
+	start_loop:
+	for(px = 0; px < SIZE; px++)
+	for(py = 0; py < SIZE; py++)
+	for(pz = 0; pz < SIZE; pz++)
+		if(map.get(px,py,pz) === 0){ break start_loop; }
 
-	var px = 0, py = 0, pz = 0;
-	start_loop: for(;px < 512; px+=64){
-		for(;py < 64; py+=8){
-			for(;pz < 8; pz++){
-				if(map[px + py + pz] === 0){ break start_loop; }
-			}
-		}
-	}
-
-	var player = new Player(px/64+.5, py/8+.5, pz+.5);
+	var player = new Player(px+.5, py+.5, pz+.5);
 	var controls = new Controls();
 	var camera = new Camera(canvas, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture4.jpg"]);
