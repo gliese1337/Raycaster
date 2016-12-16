@@ -1,13 +1,4 @@
-html {
-  box-sizing: border-box;
-}
-
 body {
-  background-color: #aaa;
-  font-family: Sans-Serif;
-}
-
-canvas {
-  background-color: #fff;
-  border: 1px solid black;
+	margin: 0;
+	overflow: hidden;
 }

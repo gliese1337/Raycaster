@@ -18,6 +18,9 @@
 <script id="fragment-shader" src="fragment.shader" type="x-shader/x-fragment"></script>
 
 <script>
+	var display = document.getElementById("display");
+	display.width = window.innerWidth;
+	display.height = window.innerHeight;
 	main(document.getElementById("display"));
 </script>
 </body></html>
