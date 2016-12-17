@@ -1,23 +1,9 @@
-function getFragShader(
-	SIZE,
-	u_depth,
-	u_resolution,
-	u_origin,
-	u_rgt, u_up, u_fwd, u_ana,
-	u_map, u_textures
-){
+var Raycast = (function(){
 	"use strict";
 
-	function get_cell(x, y, z, w){
-		x %= SIZE;
-		y %= SIZE;
-		z %= SIZE;
-		w %= SIZE;
-		if(x < 0){ x += SIZE; }
-		if(y < 0){ y += SIZE; }
-		if(z < 0){ z += SIZE; }
-		if(w < 0){ z += SIZE; }
-		return u_map[w][z][y][x];
+	function normalize(v){
+		var mag = Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z+v.w*v.w);
+		return { x: v.x/mag, y: v.y/mag, z: v.z/mag, w: v.w/mag };
 	}
 
 	// Find the distance to the next cell boundary
@@ -46,28 +32,19 @@ function getFragShader(
 		};
 	}
 
-	function calc_tex(dim, ray){
-		var x = ray.x - Math.floor(ray.x),
-			y = ray.y - Math.floor(ray.y),
-			z = ray.z - Math.floor(ray.z),
-			w = ray.w - Math.floor(ray.w);
-
-		if(dim == 1){ return u_textures[0].get(y,z); }
-		if(dim == 2){ return u_textures[1].get(z,x); }
-		if(dim == 3){ return u_textures[2].get(x,y); }
-		if(dim == 4){ return u_textures[3].get(y,x); }
-		if(dim == -1){ return u_textures[0].get(y,z); }
-		if(dim == -2){ return u_textures[1].get(z,x); }
-		if(dim == -3){ return u_textures[2].get(x,y); }
-		return u_textures[3].get(y,x);
+	function get_cell(SIZE, map, x, y, z, w){
+		x %= SIZE;
+		y %= SIZE;
+		z %= SIZE;
+		w %= SIZE;
+		if(x < 0){ x += SIZE; }
+		if(y < 0){ y += SIZE; }
+		if(z < 0){ z += SIZE; }
+		if(w < 0){ z += SIZE; }
+		return map[w][z][y][x];
 	}
 
-	function normalize(v){
-		var mag = Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z+v.w*v.w);
-		return { x: v.x/mag, y: v.y/mag, z: v.z/mag, w: v.w/mag };
-	};
-
-	function cast_vec(o, v, range) {
+	return function cast(o, v, range, SIZE, map) {
 		"use strict";
 
 		// Starting from the player, we find the nearest gridlines
@@ -77,10 +54,12 @@ function getFragShader(
 
 		var sx, sy, sz, sw,
 			mx, my, mz, mw,
+			xmax, ymax, zmax, wmax,
 			xdelta, ydelta, zdelta, wdelta,
 			xdist, ydist, zdist, wdist,
 			value, dim, tmp, i,
-			distance = 0;
+			distance = 0,
+			count = 0;
 
 		v = normalize(v);
 			
@@ -89,15 +68,26 @@ function getFragShader(
 		// vector to hit a cell boundary perpendicular
 		// to that dimension.
 		xdelta = Math.abs(1/v.x);
+		xmax = 1/0;
+		if(!isFinite(xdelta)){ count++; }
+		
 		ydelta = Math.abs(1/v.y);
+		ymax = 1/0;
+		if(!isFinite(ydelta)){ count++; }
+
 		zdelta = Math.abs(1/v.z);
+		zmax = 1/0;
+		if(!isFinite(zdelta)){ count++; }
+
 		wdelta = Math.abs(1/v.w);
+		wmax = 1/0;
+		if(!isFinite(wdelta)){ count++; }
 
 		tmp = cast_comp(v.x, v.y, v.z, v.w, o.x);
 		xdist = tmp.dist;
 		sx = tmp.sign;
 		mx = tmp.m;
-
+		
 		tmp = cast_comp(v.y, v.x, v.z, v.w, o.y);
 		ydist = tmp.dist;
 		sy = tmp.sign;
@@ -112,7 +102,7 @@ function getFragShader(
 		wdist = tmp.dist;
 		sw = tmp.sign;
 		mw = tmp.m;
-
+		
 		for(i = 0; i < 1000; i++) {
 			// Find the next closest cell boundary
 			// and increment distances appropriately
@@ -121,53 +111,49 @@ function getFragShader(
 				mx += sx;
 				distance = xdist;
 				xdist += xdelta;
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+					xmax = distance * v.x;
+					count++;
+				}
 			}else if(ydist <= xdist && ydist <= zdist && ydist <= wdist){
 				dim = 2*sy;
 				my += sy;
 				distance = ydist;
 				ydist += ydelta;
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+					ymax = distance * v.y;
+					count++;
+				}
 			}else if(zdist <= xdist && zdist <= ydist && zdist <= wdist){
 				dim = 3*sz;
 				mz += sz;
 				distance = zdist;
 				zdist += zdelta;
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+					zmax = distance * v.z;
+					count++;
+				}
 			}else{
 				dim = 4*sw;
 				mw += sw;
 				distance = wdist;
 				wdist += wdelta;
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+					wmax = distance * v.w;
+					count++;
+				}
 			}
 
-			value = get_cell(mx, my, mz, mw);
-			if(value > 0 || distance >= range){
+			if(count == 4 || distance >= range){
 				break;
 			}
 		}
 
-		if(value == 0){
-			return [255,255,255,255];
-		}
-
-		var tex = calc_tex(dim, {
-			x: o.x + distance *  v.x,
-			y: o.y + distance *  v.y,
-			z: o.z + distance *  v.z,
-			w: o.w + distance *  v.w
-		});
-		
-		var dr = distance/range;
-		var alpha = Math.floor(255*(1.0 - dr*dr*dr*dr));;
-		return 'rgba('+[tex[0],tex[1],tex[2],alpha].join(',')+')';
-	}
-
-	return function main(x, y){
-		x -= u_resolution.h/2;
-		y -= u_resolution.v/2;
-		return cast_vec(u_origin, {
-			x: u_depth*u_fwd.x+x*u_rgt.x+y*u_up.x,
-			y: u_depth*u_fwd.y+x*u_rgt.y+y*u_up.y,
-			z: u_depth*u_fwd.z+x*u_rgt.z+y*u_up.z,
-			w: u_depth*u_fwd.w+x*u_rgt.w+y*u_up.w
-		}, 10);
+		return {
+			xmax: xmax,
+			ymax: ymax,
+			zmax: zmax,
+			wmax: wmax
+		};
 	};
-}
+}());

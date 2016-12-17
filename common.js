@@ -156,11 +156,34 @@ Player.prototype.rotate = function(v,k,angle){
 
 Player.prototype.translate = function(seconds, map) {
 	"use strict";
-	var speed = this.speed;
-	var dx = (this.rgt.x * speed.x + this.up.x * speed.y + this.fwd.x * speed.z + this.ana.x * speed.w) * seconds;
-	var dy = (this.rgt.y * speed.x + this.up.y * speed.y + this.fwd.y * speed.z + this.ana.y * speed.w) * seconds;
-	var dz = (this.rgt.z * speed.x + this.up.z * speed.y + this.fwd.z * speed.z + this.ana.z * speed.w) * seconds;
-	var dw = (this.rgt.w * speed.x + this.up.w * speed.y + this.fwd.w * speed.z + this.ana.w * speed.w) * seconds;
+	var dx, dy, dz, dw, tmp,
+		xmax, ymax, zmax, wmax,
+		speed = this.speed,
+		geospeed = {
+			x: this.rgt.x * speed.x + this.up.x * speed.y + this.fwd.x * speed.z + this.ana.x * speed.w,
+			y: this.rgt.y * speed.x + this.up.y * speed.y + this.fwd.y * speed.z + this.ana.y * speed.w,
+			z: this.rgt.z * speed.x + this.up.z * speed.y + this.fwd.z * speed.z + this.ana.z * speed.w,
+			w: this.rgt.w * speed.x + this.up.w * speed.y + this.fwd.w * speed.z + this.ana.w * speed.w
+		};
+
+	/*tmp = Raycast(this, geospeed, SIZE*2, SIZE, map.grid);
+	xmax = tmp.xmax;
+	ymax = tmp.ymax;
+	zmax = tmp.zmax;
+	wmax = tmp.wmax;
+
+	console.log(xmax, ymax, zmax, wmax);
+	*/
+	dx = geospeed.x * seconds;
+	dy = geospeed.y * seconds;
+	dz = geospeed.z * seconds;
+	dw = geospeed.w * seconds;
+/*
+	dx = dx > 0 ? Math.min(dx, xmax-.1) : Math.max(dx, -xmax+.1);
+	dy = dy > 0 ? Math.min(dy, ymax-.1) : Math.max(dy, -ymax+.1);
+	dz = dz > 0 ? Math.min(dz, zmax-.1) : Math.max(dz, -zmax+.1);
+	dw = dw > 0 ? Math.min(dw, wmax-.1) : Math.max(dw, -wmax+.1);
+*/
 	this.x = (this.x + dx + SIZE) % SIZE;
 	this.y = (this.y + dy + SIZE) % SIZE;
 	this.z = (this.z + dz + SIZE) % SIZE;

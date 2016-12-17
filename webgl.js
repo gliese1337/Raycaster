@@ -117,7 +117,7 @@ function main(canvas){
 		if(change){
 			camera.render(player);
 			console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
-			console.log("x",player.x,"y",player.y,"z",player.z,"w",player.w);
+			//console.log("x",player.x,"y",player.y,"z",player.z,"w",player.w);
 		}
 		if(fps.length > 20){ fps.shift(); }
 		fps.push(1/seconds);
