@@ -143,6 +143,11 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 }
 
 void main(){
+	vec4 cell = floor(u_origin);
+	if(get_cell(int(cell.x), int(cell.y), int(cell.z), int(cell.w)) > 0){
+		gl_FragColor = vec4(0,0,0,1);
+		return;
+	}
 	vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
