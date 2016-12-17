@@ -82,6 +82,10 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	int sx, sy, sz, sw;
 	int mx, my, mz, mw;
 	int dim, value;
+
+	float inc;
+	float blue = 0.0;
+	float yellow = 0.0;
 	float distance = 0.0;
 
 	v = normalize(v);
@@ -105,37 +109,56 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 		if(xdist <= ydist && xdist <= zdist && xdist <= wdist){
 			dim = 1*sx;
 			mx += sx;
+			inc = xdist - distance;
 			distance = xdist;
 			xdist += deltas.x;
 		}else if(ydist <= xdist && ydist <= zdist && ydist <= wdist){
 			dim = 2*sy;
 			my += sy;
+			inc = ydist - distance;
 			distance = ydist;
 			ydist += deltas.y;
 		}else if(zdist <= xdist && zdist <= ydist && zdist <= wdist){
 			dim = 3*sz;
 			mz += sz;
+			inc = zdist - distance;
 			distance = zdist;
 			zdist += deltas.z;
 		}else{
 			dim = 4*sw;
 			mw += sw;
+			inc = wdist - distance;
 			distance = wdist;
 			wdist += deltas.w;
 		}
 
 		value = get_cell(mx, my, mz, mw);
-		if(value > 0 || distance >= range){
+		if(value == 3 || distance >= range){
 			break;
+		}else if(value == 2){
+			yellow += inc;
+		}else{
+			blue += inc;
 		}
 	}
 
+	vec4 tex;
 	if(value == 0){
-		return vec4(1,1,1,1);
+		tex = vec4(1,1,1,1);
+	}else{
+		vec4 ray = o + distance *  v;
+		tex = calc_tex(dim, ray);
 	}
 
-	vec4 ray = o + distance *  v;
-	vec4 tex = calc_tex(dim, ray);
+	float clear = distance - yellow - blue;
+	
+	clear /= distance;
+	yellow /= distance;
+	blue /= distance;
+	
+	tex = tex*clear
+		+ vec4(0.71,0.71,0.0,0.0)*yellow
+		+ vec4(0.0,0.0,1.0,0.0)*blue;
 	
 	float dr = distance/range;
 	float alpha = 1.0 - dr*dr*dr*dr;
@@ -144,7 +167,7 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 void main(){
 	vec4 cell = floor(u_origin);
-	if(get_cell(int(cell.x), int(cell.y), int(cell.z), int(cell.w)) > 0){
+	if(get_cell(int(cell.x), int(cell.y), int(cell.z), int(cell.w)) == 3){
 		gl_FragColor = vec4(0,0,0,1);
 		return;
 	}

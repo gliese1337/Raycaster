@@ -15,15 +15,17 @@ var Maze = (function(){
 
 		
 		function isSafe(x, y, z, w){
-			return 8 == (grid[w][z][y][x] +
-					grid[w][z][y][(x+1)%xsize] +
-					grid[w][z][y][(x+xsize-1)%xsize] +
-					grid[w][z][(y+1)%ysize][x] +
-					grid[w][z][(y+ysize-1)%ysize][x] +
-					grid[w][(z+1)%zsize][y][x] +
-					grid[w][(z+zsize-1)%zsize][y][x] +
-					grid[(w+1)%wsize][z][y][x] +
-					grid[(w+wsize-1)%wsize][z][y][x]);				
+			return 8 == (
+				(grid[w][z][y][x] == 3 ? 1 : 0) +
+				(grid[w][z][y][(x+1)%xsize] == 3 ? 1 : 0) +
+				(grid[w][z][y][(x+xsize-1)%xsize] == 3 ? 1 : 0) +
+				(grid[w][z][(y+1)%ysize][x] == 3 ? 1 : 0) +
+				(grid[w][z][(y+ysize-1)%ysize][x] == 3 ? 1 : 0) +
+				(grid[w][(z+1)%zsize][y][x] == 3 ? 1 : 0) +
+				(grid[w][(z+zsize-1)%zsize][y][x] == 3 ? 1 : 0) +
+				(grid[(w+1)%wsize][z][y][x] == 3 ? 1 : 0) +
+				(grid[(w+wsize-1)%wsize][z][y][x] == 3 ? 1 : 0)
+			);				
 		}
 
 		console.log("Generating Grid");
@@ -34,7 +36,7 @@ var Maze = (function(){
 				ylevel = [];
 				for (y = 0; y < ysize; y++) {
 					xlevel = [];
-					for (x = 0; x < xsize; x++) { xlevel.push(1); }
+					for (x = 0; x < xsize; x++) { xlevel.push(3); }
 					ylevel.push(xlevel);
 				}
 				zlevel.push(ylevel)
@@ -99,7 +101,7 @@ var Maze = (function(){
 					break;
 				}
 
-				grid[nw][nz][ny][nx] = 0;
+				grid[nw][nz][ny][nx] = rand(3);
 				cells.push({ x: nx, y: ny, z: nz, w: nw });
 			}
 		}
