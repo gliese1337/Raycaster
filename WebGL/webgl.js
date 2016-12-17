@@ -161,10 +161,10 @@ Player.prototype.translate = function(seconds, map) {
 	var dy = (this.rgt.y * speed.x + this.up.y * speed.y + this.fwd.y * speed.z + this.ana.y * speed.w) * seconds;
 	var dz = (this.rgt.z * speed.x + this.up.z * speed.y + this.fwd.z * speed.z + this.ana.z * speed.w) * seconds;
 	var dw = (this.rgt.w * speed.x + this.up.w * speed.y + this.fwd.w * speed.z + this.ana.w * speed.w) * seconds;
-	this.x = (((this.x + dx) % SIZE) + SIZE) % SIZE;
-	this.y = (((this.y + dy) % SIZE) + SIZE) % SIZE;
-	this.z = (((this.z + dz) % SIZE) + SIZE) % SIZE;
-	this.w = (((this.w + dw) % SIZE) + SIZE) % SIZE;
+	this.x = (this.x + dx + SIZE) % SIZE;
+	this.y = (this.y + dy + SIZE) % SIZE;
+	this.z = (this.z + dz + SIZE) % SIZE;
+	this.w = (this.w + dw + SIZE) % SIZE;
 };
 
 Player.prototype.update_speed = function(controls, seconds){
@@ -382,6 +382,7 @@ function main(canvas){
 		if(change){
 			camera.render(player);
 			console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
+			console.log("x",player.x,"y",player.y,"z",player.z,"w",player.w);
 		}
 		if(fps.length > 20){ fps.shift(); }
 		fps.push(1/seconds);

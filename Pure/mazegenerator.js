@@ -1,114 +1,135 @@
-var Maze = (function() {
+var Maze = (function(){
 
-	function rand(n) {
+	function rand(n){
 		return Math.floor(Math.random() * n);
 	}
 
-	function randomDirections() {
-		var i, j, list, tmp;
-		list = ['N', 'S', 'E', 'W', 'U', 'D'];
-		for (i = 0; i < 6; i++) {
-		  j = i + rand(6 - i);
-		  tmp = list[j]
-		  list[j] = list[i]
-		  list[i] = tmp;
-		}
-		return list;
+	function pick(list){
+		return list[rand(list.length)];
 	};
-	
-	function Maze(width, height, depth) {
-		var i, x, y, z, nx, ny, nz,
-			grid, level, row,
-			cell, cells,
-			index, dirs;
+		
+	function generate(xsize, ysize, zsize, wsize) {
+		var i, x, y, z, w, nx, ny, nz, nw,
+			grid, zlevel, ylevel, xlevel,
+			cell, cells, index, dirs, safe;
 
-		grid = [];
-		for (z = 0; z < depth * 2; z++){
-			level = [];
-			for (y = 0; y < height * 2; y++) {
-				row = [];
-				for (x = 0; x < width * 2; x++) { row.push(1); }
-				level.push(row);
-			}
-			grid.push(level);
+		
+		function isSafe(x, y, z, w){
+			return 8 == (grid[w][z][y][x] +
+					grid[w][z][y][(x+1)%xsize] +
+					grid[w][z][y][(x+xsize-1)%xsize] +
+					grid[w][z][(y+1)%ysize][x] +
+					grid[w][z][(y+ysize-1)%ysize][x] +
+					grid[w][(z+1)%zsize][y][x] +
+					grid[w][(z+zsize-1)%zsize][y][x] +
+					grid[(w+1)%wsize][z][y][x] +
+					grid[(w+wsize-1)%wsize][z][y][x]);				
 		}
 
-		nx = rand(width - 1) * 2 + 1;
-		ny = rand(height - 1) * 2 + 1;
-		nz = rand(depth - 1) * 2 + 1;
-		grid[nz][ny][nx] = 0;
-		cells = [{x:nx,y:ny,z:nz}];
+		console.log("Generating Grid");
+		grid = [];
+		for(w = 0; w < wsize; w++){
+			zlevel = []
+			for (z = 0; z < zsize; z++){
+				ylevel = [];
+				for (y = 0; y < ysize; y++) {
+					xlevel = [];
+					for (x = 0; x < xsize; x++) { xlevel.push(1); }
+					ylevel.push(xlevel);
+				}
+				zlevel.push(ylevel)
+			}
+			grid.push(zlevel);
+		}
+		
+		console.log("Generating Maze");
+		nx = rand(xsize);
+		ny = rand(ysize);
+		nz = rand(zsize);
+		nw = rand(wsize);
+		grid[nw][nz][ny][nx] = 0;
+		cells = [{x:nx,y:ny,z:nz,w:nw}];
 
 		while (cells.length > 0) {
+			//Grab a random empty cell
 			index = Math.random() < .5 ? rand(cells.length) : cells.length - 1;
 			cell = cells[index];
-			dirs = randomDirections();
-			loop: for (i = 0; i < 6; i++) {
-				switch(dirs[i]){
-				case 'N':
-					nx = cell.x;
-					ny = (cell.y - 2 + height*2)%(height*2);
-					nz = cell.z;
-					if (grid[nz][ny][nx] === 1) {
-						grid[nz][(ny + 1)%(height*2)][nx] = 0;
-						break loop;
-					}
+			
+			nx = cell.x;
+			ny = cell.y;
+			nz = cell.z;
+			nw = cell.w;
+			
+			//Check if there are any directions in which we can carve out a space
+			//without running into another empty cell, which would create a cycle
+			safe = [];
+
+			if(isSafe((nx+1)%xsize, ny, nz, nw)){ safe.push("R"); }
+			if(isSafe((nx+xsize-1)%xsize, ny, nz, nw)){ safe.push("L"); }
+			
+			if(isSafe(nx, (ny+1)%ysize, nz, nw)){ safe.push("U"); }
+			if(isSafe(nx, (ny+ysize-1)%ysize, nz, nw)){ safe.push("D"); }
+			
+			if(isSafe(nx, ny, (nz+1)%zsize, nw)){ safe.push("F"); }
+			if(isSafe(nx, ny, (nz+zsize-1)%zsize, nw)){ safe.push("B"); }
+			
+			if(isSafe(nx, ny, nz, (nw+1)%wsize)){ safe.push("A"); }
+			if(isSafe(nx, ny, nz, (nw+wsize-1)%wsize)){ safe.push("K"); }
+			
+			if(safe.length == 0){
+				cells.splice(index, 1);
+			}else{
+				//Pick a random direction & carve it out
+				switch(pick(safe)){
+				case 'R': nx = (nx + 1) % xsize;
 					break;
-				case 'S':
-					nx = cell.x;
-					ny = (cell.y + 2)%(height*2);
-					nz = cell.z;
-					if (grid[nz][ny][nx] === 1) {
-						grid[nz][(ny - 1 + height*2)%(height*2)][nx] = 0;
-						break loop;
-					}
+				case 'L': nx = (nx - 1 + xsize) % xsize;
 					break;
-				case 'E':
-					nx = (cell.x + 2)%(width*2);
-					ny = cell.y;
-					nz = cell.z;
-					if (grid[nz][ny][nx] === 1) {
-						grid[nz][ny][(nx - 1 + width*2)%(width*2)] = 0;
-						break loop;
-					}
+				case 'U': ny = (ny + 1) % ysize;
 					break;
-				case 'W':
-					nx = (cell.x - 2 + width*2)%(width*2);
-					ny = cell.y;
-					nz = cell.z;
-					if (grid[nz][ny][nx] === 1) {
-						grid[nz][ny][(nx + 1)%(width*2)] = 0;
-						break loop;
-					}
+				case 'D': ny = (ny - 1 + ysize) % ysize;
 					break;
-				case 'U':
-					nx = cell.x;
-					ny = cell.y;
-					nz = (cell.z + 2)%(depth*2);
-					if (grid[nz][ny][nx] === 1) {
-						grid[(nz - 1 + depth*2)%(depth*2)][ny][nx] = 0;
-						break loop;
-					}
+				case 'F': nz = (nz + 1) % zsize;
 					break;
-				case 'D':
-					nx = cell.x
-					ny = cell.y;
-					nz = (cell.z - 2 + depth*2)%(depth*2);;
-					if (grid[nz][ny][nx] === 1) {
-						grid[(nz + 1)%(depth*2)][ny][nx] = 0;
-						break loop;
-					}
+				case 'B': nz = (nz - 1 + zsize) % zsize;
+					break;
+				case 'A': nw = (nw + 1) % wsize;
+					break;
+				case 'K': nw = (nw - 1 + wsize) % wsize;
 					break;
 				}
-			}
-			if(i === 6){ cells.splice(index, 1); }
-			else{
-				grid[nz][ny][nx] = 0;
-				cells.push({ x: nx, y: ny, z: nz });
+
+				grid[nw][nz][ny][nx] = 0;
+				cells.push({ x: nx, y: ny, z: nz, w: nw });
 			}
 		}
-		grid[rand(depth - 1)*2 + 1][rand(height - 1)*2 + 1][0] = 0;
+		
+		console.log("Completed Maze");
 		return grid;
+	}
+	
+	function Maze(size){
+		this.size = size;
+		this.grid = generate(size,size,size,size);
+	}
+	
+	Maze.prototype.get = function(x,y,z,w){
+		return this.grid[w][z][y][x];
+	}
+	
+	Maze.prototype.flatten = function(){
+		var i = 0,
+			x, y, z, w,
+			size = this.size,
+			wallgrid = [];
+
+		for(x = 0; x < size; x++)
+		for(y = 0; y < size; y++)
+		for(z = 0; z < size; z++)
+		for(w = 0; w < size; w++)
+			wallgrid[i++] = this.grid[w][z][y][x];
+		
+		return wallgrid;
 	}
 	
 	return Maze;

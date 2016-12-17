@@ -2,15 +2,19 @@
 <html>
 <head>
 	<title>Pure JS</title>
+	<link type="text/css" href="webgl.css" rel="stylesheet">
 	<script src="mazegenerator.js"></script>
 	<script src="fragment.js"></script>
 	<script src="pure.js"></script>
 </head>
 <body>
-<canvas id="display" width="800" height="600"></canvas>
+<canvas id="display"></canvas>
 
 <script>
-	main(document.getElementById("display"));
+	var display = document.getElementById("display");
+	display.width = window.innerWidth;
+	display.height = window.innerHeight;
+	main(document.getElementById("display"), 160, 90);
 </script>
 </body>
 </html>

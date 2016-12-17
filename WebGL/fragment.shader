@@ -74,8 +74,8 @@ vec4 calc_tex(int dim, vec4 ray){
 }
 
 vec4 cast_vec(vec4 o, vec4 v, float range){
-	// Starting from the player, we find the nearest horizontal
-	// and vertical gridlines. We move to whichever is closer and
+	// Starting from the player, we find the nearest gridlines
+	// in each dimension. We move to whichever is closer and
 	// check for a wall (inspect). Then we repeat until we've
 	// traced the entire length of the ray.
 
@@ -142,7 +142,8 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	return vec4(tex.rgb, alpha);
 }
 
-void main(){vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
+void main(){
+	vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
 	gl_FragColor = cast_vec(u_origin, ray, 10.0);
