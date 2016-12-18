@@ -79,7 +79,9 @@ function getFragShader(
 			mx, my, mz, mw,
 			xdelta, ydelta, zdelta, wdelta,
 			xdist, ydist, zdist, wdist,
-			value, dim, tmp, i,
+			value, dim, tmp, i, inc,
+			blue = 0,
+			yellow = 0,
 			distance = 0;
 
 		v = normalize(v);
@@ -119,48 +121,80 @@ function getFragShader(
 			if(xdist <= ydist && xdist <= zdist && xdist <= wdist){		
 				dim = 1*sx;
 				mx += sx;
+				inc = xdist - distance;
 				distance = xdist;
 				xdist += xdelta;
 			}else if(ydist <= xdist && ydist <= zdist && ydist <= wdist){
 				dim = 2*sy;
 				my += sy;
+				inc = ydist - distance;
 				distance = ydist;
 				ydist += ydelta;
 			}else if(zdist <= xdist && zdist <= ydist && zdist <= wdist){
 				dim = 3*sz;
 				mz += sz;
+				inc = zdist - distance;
 				distance = zdist;
 				zdist += zdelta;
 			}else{
 				dim = 4*sw;
 				mw += sw;
+				inc = wdist - distance;
 				distance = wdist;
 				wdist += wdelta;
 			}
 
 			value = get_cell(mx, my, mz, mw);
-			if(value > 0 || distance >= range){
+			if(value == 1){
+				blue += inc;
+			}else if(value == 2){
+				yellow += inc;
+			}
+
+			if(value == 3 || distance >= range){
 				break;
 			}
 		}
 
+		var tex;
 		if(value == 0){
-			return [255,255,255,255];
+			tex = [255,255,255,255];
+		}else{
+			tex = calc_tex(dim, {
+				x: o.x + distance *  v.x,
+				y: o.y + distance *  v.y,
+				z: o.z + distance *  v.z,
+				w: o.w + distance *  v.w
+			});
 		}
 
-		var tex = calc_tex(dim, {
-			x: o.x + distance *  v.x,
-			y: o.y + distance *  v.y,
-			z: o.z + distance *  v.z,
-			w: o.w + distance *  v.w
-		});
+		var clear = distance - yellow - blue;
 		
+		clear /= distance;
+		yellow /= distance;
+		blue /= distance;
+		
+		tex = [
+			tex[0]*clear + 255*.71*yellow,
+			tex[1]*clear + 255*.71*yellow,
+			tex[2]*clear + 255*blue
+		];
+
 		var dr = distance/range;
 		var alpha = Math.floor(255*(1.0 - dr*dr*dr*dr));;
 		return 'rgba('+[tex[0],tex[1],tex[2],alpha].join(',')+')';
 	}
 
 	return function main(x, y){
+		if(get_cell(
+			Math.floor(u_origin.x),
+			Math.floor(u_origin.y),
+			Math.floor(u_origin.z),
+			Math.floor(u_origin.w)
+		) == 3){
+			return [0,0,0,255];
+		}
+		
 		x -= u_resolution.h/2;
 		y -= u_resolution.v/2;
 		return cast_vec(u_origin, {

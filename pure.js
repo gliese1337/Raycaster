@@ -74,28 +74,39 @@ Camera.prototype.render = function(player, map) {
 function main(canvas, width, height){
 	"use strict";
 
-	var px, py, pz, pw,
-		map = new Maze(SIZE);
+	var map = new Maze(SIZE),
+		path = map.getLongestPath(),
+		start = path.shift(),
+		end = path.pop();
 
-	start_loop:
-	for(px = 0; px < SIZE; px++)
-	for(py = 0; py < SIZE; py++)
-	for(pz = 0; pz < SIZE; pz++)
-	for(pw = 0; pw < SIZE; pw++)
-		if(map.get(px,py,pz,pw) === 0){ break start_loop; }
+	map.set(start.x,start.y,start.z,start.w,0);
+	map.set(end.x,end.y,end.z,end.w,2);
+	path.forEach(function(cell){
+		map.set(cell.x,cell.y,cell.z,cell.w,1);
+	});
 
-	var player = new Player(px+.5, py+.5, pz+.5, pw+.5);
+	var player = new Player(start.x+.5, start.y+.5, start.z+.5, start.w+.5);
 	var controls = new Controls();
 	var camera = new Camera(canvas, map, width, height, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
 
 	var fps = [];
 	var loop = new GameLoop(function(seconds){
-		var change = player.update(controls.states, map, seconds);
+		var cx,cy,cz,cw,
+			change = player.update(controls.states, map, seconds);
 		if(change){
-			camera.render(player, map);
-			console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
-			//console.log("x",player.x,"y",player.y,"z",player.z,"w",player.w);
+			//console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
+			
+			cx = Math.floor(player.x);
+			cy = Math.floor(player.y);
+			cz = Math.floor(player.z);
+			cw = Math.floor(player.w);
+			
+			if(map.get(cx,cy,cz,cw) != 0){
+				map.set(cx,cy,cz,cw,0);
+			}
+
+			camera.render(player);
 		}
 		if(fps.length > 20){ fps.shift(); }
 		fps.push(1/seconds);

@@ -4,6 +4,9 @@ function Camera(canvas, map, hfov, textures){
 	if (!gl){ throw new Error("No WebGL Support"); }
 
 	this.gl = gl;
+	this.program = null;
+	this.map = map;
+	
 	this.originLoc = null;
 
 	this.rgtLoc = null;
@@ -22,6 +25,8 @@ function Camera(canvas, map, hfov, textures){
 	var promise = GL_Utils.createProgramFromScripts(gl, ["vertex-shader", "fragment-shader"])
 	.then(function(program){
 
+		this.program = program;
+
 		// look up where the vertex data needs to go.
 		var posAttrLoc = gl.getAttribLocation(program, "a_position");
 
@@ -29,12 +34,14 @@ function Camera(canvas, map, hfov, textures){
 		gl.enableVertexAttribArray(posAttrLoc);
 
 		// Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-		var size = 2;        // 2 components per iteration
-		var type = gl.FLOAT; // the data is 32bit floats
-		var norm = false;    // don't normalize the data
-		var stride = 0;      // Don't skip any data
-		var offset = 0;      // start at the beginning of the buffer
-		gl.vertexAttribPointer(posAttrLoc, size, type, norm, stride, offset)
+		gl.vertexAttribPointer(
+			posAttrLoc,
+			2,			// size, 2 components per iteration
+			gl.FLOAT,	// type, 32bit floats
+			false,		// norm, don't normalize data
+			0,			// stride, don't skip anything
+			0			// offset
+		);
 
 		// Tell WebGL how to convert from clip space to pixels
 		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -83,6 +90,13 @@ function Camera(canvas, map, hfov, textures){
 	this.onready = promise.then.bind(promise);
 }
 
+Camera.prototype.setCell = function(x,y,z,w,val){
+	var gl = this.gl,
+		idx = this.map.cellIndex(x,y,z,w),
+		mapLoc = gl.getUniformLocation(this.program, "u_map["+idx+"]");
+	gl.uniform1i(mapLoc, val);
+};
+
 Camera.prototype.render = function(player){
 	var gl = this.gl;
 	gl.uniform4f(this.originLoc, player.x, player.y, player.z, player.w);
@@ -96,28 +110,40 @@ Camera.prototype.render = function(player){
 function main(canvas){
 	"use strict";
 
-	var px, py, pz, pw,
-		map = new Maze(SIZE);
+	var map = new Maze(SIZE),
+		path = map.getLongestPath(),
+		start = path.shift(),
+		end = path.pop();
 
-	start_loop:
-	for(px = 0; px < SIZE; px++)
-	for(py = 0; py < SIZE; py++)
-	for(pz = 0; pz < SIZE; pz++)
-	for(pw = 0; pw < SIZE; pw++)
-		if(map.get(px,py,pz,pw) === 0){ break start_loop; }
+	map.set(start.x,start.y,start.z,start.w,0);
+	map.set(end.x,end.y,end.z,end.w,2);
+	path.forEach(function(cell){
+		map.set(cell.x,cell.y,cell.z,cell.w,1);
+	});
 
-	var player = new Player(px+.5, py+.5, pz+.5, pw+.5);
+	var player = new Player(start.x+.5, start.y+.5, start.z+.5, start.w+.5);
 	var controls = new Controls();
 	var camera = new Camera(canvas, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
 
 	var fps = [];
 	var loop = new GameLoop(function(seconds){
-		var change = player.update(controls.states, map, seconds);
+		var cx,cy,cz,cw,
+			change = player.update(controls.states, map, seconds);
 		if(change){
+			//console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
+			
+			cx = Math.floor(player.x);
+			cy = Math.floor(player.y);
+			cz = Math.floor(player.z);
+			cw = Math.floor(player.w);
+			
+			if(map.get(cx,cy,cz,cw) != 0){
+				map.set(cx,cy,cz,cw,0);
+				camera.setCell(cx,cy,cz,cw,0);
+			}
+
 			camera.render(player);
-			console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
-			//console.log("x",player.x,"y",player.y,"z",player.z,"w",player.w);
 		}
 		if(fps.length > 20){ fps.shift(); }
 		fps.push(1/seconds);

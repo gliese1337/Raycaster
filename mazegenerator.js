@@ -8,7 +8,7 @@ var Maze = (function(){
 		return list[rand(list.length)];
 	};
 		
-	function generate(xsize, ysize, zsize, wsize) {
+	function generate(start, xsize, ysize, zsize, wsize) {
 		var i, x, y, z, w, nx, ny, nz, nw,
 			grid, zlevel, ylevel, xlevel,
 			cell, cells, index, dirs, safe;
@@ -45,12 +45,12 @@ var Maze = (function(){
 		}
 		
 		console.log("Generating Maze");
-		nx = rand(xsize);
-		ny = rand(ysize);
-		nz = rand(zsize);
-		nw = rand(wsize);
+		nx = start.x;
+		ny = start.y;
+		nz = start.z;
+		nw = start.w;
 		grid[nw][nz][ny][nx] = 0;
-		cells = [{x:nx,y:ny,z:nz,w:nw}];
+		cells = [start];
 
 		while (cells.length > 0) {
 			//Grab a random empty cell
@@ -101,7 +101,7 @@ var Maze = (function(){
 					break;
 				}
 
-				grid[nw][nz][ny][nx] = rand(3);
+				grid[nw][nz][ny][nx] = 0;
 				cells.push({ x: nx, y: ny, z: nz, w: nw });
 			}
 		}
@@ -112,12 +112,102 @@ var Maze = (function(){
 	
 	function Maze(size){
 		this.size = size;
-		this.grid = generate(size,size,size,size);
+		this.start = {
+			x: rand(size),
+			y: rand(size),
+			z: rand(size),
+			w: rand(size)
+		};
+		this.grid = generate(this.start,size,size,size,size);
 	}
 	
 	Maze.prototype.get = function(x,y,z,w){
 		return this.grid[w][z][y][x];
 	}
+
+	Maze.prototype.set = function(x,y,z,w,val){
+		return this.grid[w][z][y][x] = val;
+	}
+	
+	Maze.prototype.cellIndex = function(x,y,z,w){
+		var size = this.size,
+			size2 = size*size,
+			size3 = size2*size;
+		return x*size3+y*size2+z*size+w;
+	};
+
+	function find_farthest(grid, start, xsize, ysize, zsize, wsize){
+		var cells,
+			ncells = [start];
+		do {
+			cells = ncells;
+			ncells = [];
+			cells.forEach(function(cell){
+				var n, val,
+					x = cell.x,
+					y = cell.y,
+					z = cell.z,
+					w = cell.w;
+
+				if(cell.prev != "R"){
+					n = (x+1)%xsize;
+					if(grid[w][z][y][n] != 3){ ncells.push({x:n,y:y,z:z,w:w,prev:"L",back:cell}); }
+				}
+
+				if(cell.prev != "L"){
+					n = (x+xsize-1)%xsize;
+					if(grid[w][z][y][n] != 3){ ncells.push({x:n,y:y,z:z,w:w,prev:"R",back:cell}); }
+				}
+
+				if(cell.prev != "U"){
+					n = (y+1)%ysize;
+					if(grid[w][z][n][x] != 3){ ncells.push({x:x,y:n,z:z,w:w,prev:"D",back:cell}); }
+				}
+				
+				if(cell.prev != "D"){
+					n = (y+ysize-1)%ysize;
+					if(grid[w][z][n][x] != 3){ ncells.push({x:x,y:n,z:z,w:w,prev:"U",back:cell}); }
+				}
+
+				if(cell.prev != "F"){
+					n = (z+1)%zsize;
+					if(grid[w][n][y][x] != 3){ ncells.push({x:x,y:y,z:n,w:w,prev:"B",back:cell}); }
+				}
+				
+				if(cell.prev != "B"){
+					n = (z+zsize-1)%zsize;
+					if(grid[w][n][y][x] != 3){ ncells.push({x:x,y:y,z:n,w:w,prev:"F",back:cell}); }
+				}
+
+				if(cell.prev != "A"){
+					n = (w+1)%wsize;
+					if(grid[n][z][y][x] != 3){ ncells.push({x:x,y:y,z:z,w:n,prev:"K",back:cell}); }
+				}
+				
+				if(cell.prev != "K"){
+					n = (w+wsize-1)%wsize;
+					if(grid[n][z][y][x] != 3){ ncells.push({x:x,y:y,z:z,w:n,prev:"A",back:cell}); }
+				}
+			});
+		} while(ncells.length > 0);
+		return cells;
+	};
+
+	Maze.prototype.getLongestPath = function(){
+		var path = [],
+			farthest;
+
+		farthest = find_farthest(this.grid, this.start, this.size, this.size, this.size, this.size)[0];
+		delete farthest.prev;
+		delete farthest.back;
+		farthest = find_farthest(this.grid, farthest, this.size, this.size, this.size, this.size)[0];
+
+		while(farthest){
+			path.push(farthest);
+			farthest = farthest.back;
+		}
+		return path;
+	};
 	
 	Maze.prototype.flatten = function(){
 		var i = 0,

@@ -133,12 +133,14 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 		}
 
 		value = get_cell(mx, my, mz, mw);
-		if(value == 3 || distance >= range){
-			break;
+		if(value == 1){
+			blue += inc;
 		}else if(value == 2){
 			yellow += inc;
-		}else{
-			blue += inc;
+		}
+
+		if(value == 3 || distance >= range){
+			break;
 		}
 	}
 
