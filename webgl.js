@@ -107,7 +107,26 @@ Camera.prototype.render = function(player){
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
 
-function main(canvas){
+function Overlay(canvas){
+	this.ctx = canvas.getContext('2d');
+	this.fps = [];
+}
+
+Overlay.prototype.tick = function(player, seconds){
+	var fps, fpsWin = this.fps,
+		ctx = this.ctx;
+	if(fpsWin.length > 20){ fpsWin.shift(); }
+	fpsWin.push(1/seconds);
+	fps = fpsWin.reduce(function(a,n){ return a + n; })/fpsWin.length;
+	fps = Math.round(fps*10)/10;
+	
+	ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+	ctx.font = "10px Calibri";
+	ctx.fillStyle = "#FFFFFF";
+	ctx.fillText("FPS: "+fps+(fps == Math.floor(fps) ? ".0":""), 5, 10);
+}
+
+function main(display, overlay){
 	"use strict";
 
 	var map = new Maze(SIZE),
@@ -123,16 +142,16 @@ function main(canvas){
 
 	var player = new Player(start.x+.5, start.y+.5, start.z+.5, start.w+.5);
 	var controls = new Controls();
-	var camera = new Camera(canvas, map, Math.PI / 1.5,
+	var camera = new Camera(display, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
+	var overlay = new Overlay(overlay);
 
 	var fps = [];
 	var loop = new GameLoop(function(seconds){
 		var cx,cy,cz,cw,
 			change = player.update(controls.states, map, seconds);
+		overlay.tick(player, seconds);
 		if(change){
-			//console.log(fps.reduce(function(a,n){ return a + n; })/fps.length,"FPS");
-			
 			cx = Math.floor(player.x);
 			cy = Math.floor(player.y);
 			cz = Math.floor(player.z);
@@ -145,8 +164,6 @@ function main(canvas){
 
 			camera.render(player);
 		}
-		if(fps.length > 20){ fps.shift(); }
-		fps.push(1/seconds);
 	});
 
 	camera.onready(function(){
