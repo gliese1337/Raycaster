@@ -4,16 +4,19 @@ function Controls() {
 	"use strict";
 	this.codes  = {
 		// space, shift, & alt
-		32: 'spc', 16: 'sft', 18: 'alt',
+		32: 'spc', 16: 'sft',
 		// left & right arrow, a & d, 4 & 6
 		37: 'lft', 39: 'rgt',
 		65: 'lft', 68: 'rgt',
+		100: 'lft', 102: 'rgt',
 		// q & e, 7 & 9
 		81: 'rlt', 69: 'rrt',
 		36: 'rlt', 33: 'rrt',
+		103: 'rlt', 105: 'rrt',
 		// up & down arrow, w & s, 8 & 5
 		38: 'up', 40: 'dwn',
-		87: 'up', 12: 'dwn',
+		87: 'up', 83: 'dwn',
+		104: 'up', 101: 'dwn',
 		12: 'dwn',
 		// z x c & , . /
 		44: 'z', 46: 'x', 47: 'y',
@@ -21,15 +24,14 @@ function Controls() {
 		188: 'z', 190: 'x', 191: 'y'
 	};
 	this.keys = {
-		spc: 0, sft: 0, alt: 0,
+		spc: 0, sft: 0,
 		lft: 0, rgt: 0,
 		rlt: 0, rrt: 0,
 		up: 0, dwn: 0,
 		x: 0, y: 0, z: 0
 	};
 	this.states = {
-		rgt: false, lft: false, up: false, dwn: false,
-		fwd: false, bak: false, ana: false, kta: false,
+		fwd: false, bak: false,
 		pup: false, pdn: false, vp: 'z', kp: 'y',
 		ylt: false, yrt: false, vy: 'z', ky: 'x',
 		rlt: false, rrt: false, vr: 'x', kr: 'y',
@@ -52,77 +54,53 @@ Controls.prototype.onKey = function(val, e) {
 
 	states = this.states;
 
-	// Defaults
-	states.pup = false;
-	states.pdn = false;
-	states.ylt = false;
-	states.yrt = false;
-	states.rlt = false;
-	states.rrt = false;
-
-	states.rgt = false;
-	states.lft = false;
-	states.up = false;
-	states.dwn = false;
-	states.fwd = !!keys.spc;
-	states.bak = false;
-	states.ana = false;
-	states.kta = false;
-	
-	// Strafing
-	if(keys.sft && !keys.alt){
+	if(keys.sft){
 		states.fwd = false;
 		states.bak = !!keys.spc;
-		states.rgt = keys.rgt && !keys.lft;
-		states.lft = !keys.rgt && keys.lft;
-		states.up = keys.up && !keys.dwn;
-		states.dwn = !keys.up && keys.dwn;
-	}else if(!keys.sft && keys.alt){
-		states.fwd = keys.spc || (keys.up && !keys.dwn);
-		states.bak = !states.fwd && keys.dwn;
-		states.ana = keys.rgt && !keys.lft;
-		states.kta = !keys.rgt && keys.lft;
-	}else{
-		// Rotation
+	}else if(!keys.sft){
+		states.fwd = !!keys.spc;
+		states.bak = false;
+	}
+	
+	// Rotation
 
-		states.pup = keys.up && !keys.dwn;
-		states.pdn = !keys.up && keys.dwn;
-		states.ylt = keys.lft && !keys.rgt;
-		states.yrt = !keys.lft && keys.rgt;
-		states.rlt = keys.rlt && !keys.rrt;
-		states.rrt = !keys.rlt && keys.rrt;
+	states.pup = keys.up && !keys.dwn;
+	states.pdn = !keys.up && keys.dwn;
+	states.ylt = keys.lft && !keys.rgt;
+	states.yrt = !keys.lft && keys.rgt;
+	states.rlt = keys.rlt && !keys.rrt;
+	states.rrt = !keys.rlt && keys.rrt;
 
-		// Default pitch, yaw, and roll planes
-		states.vp = 'z';
-		states.kp = 'y';
-		states.vy = 'z';
-		states.ky = 'x';
-		states.vr = 'x';
-		states.kr = 'y';
+	// Default pitch, yaw, and roll planes
+	states.vp = 'z';
+	states.kp = 'y';
+	states.vy = 'z';
+	states.ky = 'x';
+	states.vr = 'x';
+	states.kr = 'y';
 
-		if(keys.x + keys.y + keys.z == 1){
-			if(keys.x){
-				states.vp = 'x';
-				states.kp = 'w';
-				states.vy = 'y';
-				states.ky = 'w';
-				states.vr = 'z';
-				states.kr = 'w';
-			}else if(keys.y){
-				states.vp = 'y';
-				states.kp = 'w';
-				states.vy = 'x';
-				states.ky = 'w';
-				states.vr = 'z';
-				states.kr = 'w';
-			}else{
-				states.vp = 'z';
-				states.kp = 'w';
-				states.vy = 'y';
-				states.ky = 'w';
-				states.vr = 'x';
-				states.kr = 'w';
-			}
+	if(keys.x + keys.y + keys.z == 1){
+		if(keys.x){
+			states.vp = 'x';
+			states.kp = 'w';
+			states.vy = 'y';
+			states.ky = 'w';
+			states.vr = 'z';
+			states.kr = 'w';
+		}else if(keys.y){
+			states.vp = 'y';
+			states.kp = 'w';
+			states.vy = 'x';
+			states.ky = 'w';
+			states.vr = 'z';
+			states.kr = 'w';
+		}else{
+			states.vp = 'z';
+			states.kp = 'w';
+			states.vy = 'y';
+			states.ky = 'w';
+			states.vr = 'x';
+			states.kr = 'w';
 		}
 	}
 };
@@ -134,7 +112,11 @@ function Player(x, y, z, w){
 	this.z = z;
 	this.w = w;
 
-	this.speed = {x: 0, y: 0, z: 0, w: 0};
+	this.speed = {
+		mag: 0,
+		x: 0, y: 0,
+		z: 0, w: 0
+	};
 
 	this.rgt = {x:1,y:0,z:0,w:0};
 	this.up = {x:0,y:1,z:0,w:0};
@@ -169,13 +151,7 @@ Player.prototype.translate = function(seconds, map) {
 	"use strict";
 	var dx, dy, dz, dw, tmp,
 		xmax, ymax, zmax, wmax,
-		speed = this.speed,
-		geospeed = {
-			x: this.rgt.x * speed.x + this.up.x * speed.y + this.fwd.x * speed.z + this.ana.x * speed.w,
-			y: this.rgt.y * speed.x + this.up.y * speed.y + this.fwd.y * speed.z + this.ana.y * speed.w,
-			z: this.rgt.z * speed.x + this.up.z * speed.y + this.fwd.z * speed.z + this.ana.z * speed.w,
-			w: this.rgt.w * speed.x + this.up.w * speed.y + this.fwd.w * speed.z + this.ana.w * speed.w
-		};
+		speed = this.speed;
 
 	/*tmp = Raycast(this, geospeed, SIZE*2, SIZE, map.grid);
 	xmax = tmp.xmax;
@@ -185,10 +161,10 @@ Player.prototype.translate = function(seconds, map) {
 
 	console.log(xmax, ymax, zmax, wmax);
 	*/
-	dx = geospeed.x * seconds;
-	dy = geospeed.y * seconds;
-	dz = geospeed.z * seconds;
-	dw = geospeed.w * seconds;
+	dx = speed.x * seconds;
+	dy = speed.y * seconds;
+	dz = speed.z * seconds;
+	dw = speed.w * seconds;
 /*
 	dx = dx > 0 ? Math.min(dx, xmax-.1) : Math.max(dx, -xmax+.1);
 	dy = dy > 0 ? Math.min(dy, ymax-.1) : Math.max(dy, -ymax+.1);
@@ -202,52 +178,41 @@ Player.prototype.translate = function(seconds, map) {
 };
 
 Player.prototype.update_speed = function(controls, seconds){
-	var speed = this.speed;
+	var fwd = this.fwd,
+		speed = this.speed,
+		x = speed.x,
+		y = speed.y,
+		z = speed.z,
+		w = speed.w,
+		mag = speed.mag,
+		norm = 1, inc;
 
-	if(controls.rgt){
-		speed.x += .5*seconds;
-		if(speed.x > 10){ speed.x = 10; }
-	}else if(controls.lft){
-		speed.x -= .5*seconds;
-		if(speed.x < -10){ this.speed.x = -10; }
+	if(controls.fwd || controls.bak){
+		inc = (controls.fwd ? 0.5 : -0.5)*seconds;
+	
+		x += inc*fwd.x;
+		y += inc*fwd.y;
+		z += inc*fwd.z;
+		w += inc*fwd.w;
+
+		mag = Math.sqrt(x*x+y*y+z*z+w*w);
+		norm = (mag > 10) ? 10/mag : 1;	
+		
 	}else{
-		if(speed.x < .01 && speed.x > -.01){ speed.x = 0; }
-		else{ speed.x /= Math.pow(25,seconds); }
+		inc = mag / Math.pow(25,seconds);
+		norm = inc/mag;
+			
+		if(inc < .001 && inc > -.001){
+			norm = 0;
+		}
 	}
 
-	if(controls.up){
-		speed.y += .5*seconds;
-		if(speed.y > 10){ speed.y = 10; }
-	}else if(controls.dwn){
-		speed.y -= .5*seconds;
-		if(speed.y < -10){ this.speed.y = -10; }
-	}else{
-		if(speed.y < .01 && speed.y > -.01){ speed.y = 0; }
-		else{ speed.y /= Math.pow(25,seconds); }
-	}
-
-	if(controls.fwd){
-		speed.z += .5*seconds;
-		if(speed.z > 10){ speed.z = 10; }
-	}else if(controls.bak){
-		speed.z -= .5*seconds;
-		if(speed.z < -10){ this.speed.z = -10; }
-	}else{
-		if(speed.z < .01 && speed.z > -.01){ speed.z = 0; }
-		else{ speed.z /= Math.pow(25,seconds); }
-	}
-
-	if(controls.ana){
-		speed.w += .5*seconds;
-		if(speed.w > 10){ speed.w = 10; }
-	}else if(controls.kta){
-		speed.w -= .5*seconds;
-		if(speed.w < -10){ this.speed.w = -10; }
-	}else{
-		if(speed.w < .01 && speed.w > -.01){ speed.w = 0; }
-		else{ speed.w /= Math.pow(25,seconds); }
-	}
-
+	speed.mag = mag*norm;
+	speed.x = x*norm;
+	speed.y = y*norm;
+	speed.z = z*norm;
+	speed.w = w*norm;
+	
 };
 
 Player.prototype.update = function(controls, map, seconds) {
@@ -279,7 +244,7 @@ Player.prototype.update = function(controls, map, seconds) {
 
 	this.update_speed(controls, seconds);
 
-	if(this.speed.x != 0 || this.speed.y != 0 || this.speed.z != 0 || this.speed.w != 0){
+	if(this.speed.mag != 0){
 		this.translate(seconds, map);
 		moved = true;
 	}
