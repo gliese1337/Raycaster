@@ -76,8 +76,8 @@ Controls.prototype.onKey = function(val, e) {
 	states.kp = 'y';
 	states.vy = 'z';
 	states.ky = 'x';
-	states.vr = 'x';
-	states.kr = 'y';
+	states.vr = 'y';
+	states.kr = 'x';
 
 	if(keys.x + keys.y + keys.z == 1){
 		if(keys.x){
@@ -90,16 +90,16 @@ Controls.prototype.onKey = function(val, e) {
 		}else if(keys.y){
 			states.vp = 'y';
 			states.kp = 'w';
-			states.vy = 'x';
+			states.vy = 'z';
 			states.ky = 'w';
-			states.vr = 'z';
+			states.vr = 'x';
 			states.kr = 'w';
 		}else{
 			states.vp = 'z';
 			states.kp = 'w';
-			states.vy = 'y';
+			states.vy = 'x';
 			states.ky = 'w';
-			states.vr = 'x';
+			states.vr = 'y';
 			states.kr = 'w';
 		}
 	}
@@ -112,11 +112,7 @@ function Player(x, y, z, w){
 	this.z = z;
 	this.w = w;
 
-	this.speed = {
-		mag: 0,
-		x: 0, y: 0,
-		z: 0, w: 0
-	};
+	this.speed = 0;
 
 	this.rgt = {x:1,y:0,z:0,w:0};
 	this.up = {x:0,y:1,z:0,w:0};
@@ -149,20 +145,22 @@ Player.prototype.rotate = function(v,k,angle){
 
 Player.prototype.translate = function(seconds, map) {
 	"use strict";
-	var dx, dy, dz, dw, tmp,
-		xmax, ymax, zmax, wmax,
-		speed = this.speed;
+	var dx, dy, dz, dw,
+		fwd = this.fwd,
+		inc = this.speed * seconds;
 
-	tmp = Raycast(this, speed, SIZE*2, SIZE, map.grid);
+	/*
+	tmp = Raycast(this, fwd, SIZE*2, SIZE, map.grid);
 	xmax = Math.max(tmp.xmax-.01,0);
 	ymax = Math.max(tmp.ymax-.01,0);
 	zmax = Math.max(tmp.zmax-.01,0);
 	wmax = Math.max(tmp.wmax-.01,0);
+	*/
 
-	dx = speed.x * seconds;
-	dy = speed.y * seconds;
-	dz = speed.z * seconds;
-	dw = speed.w * seconds;
+	dx = fwd.x * inc;
+	dy = fwd.y * inc;
+	dz = fwd.z * inc;
+	dw = fwd.w * inc;
 
 	/*
 	if(Math.abs(dx) > xmax){
@@ -190,41 +188,16 @@ Player.prototype.translate = function(seconds, map) {
 };
 
 Player.prototype.update_speed = function(controls, seconds){
-	var fwd = this.fwd,
-		speed = this.speed,
-		x = speed.x,
-		y = speed.y,
-		z = speed.z,
-		w = speed.w,
-		mag = speed.mag,
-		norm = 1, inc;
-
-	if(controls.fwd || controls.bak){
-		inc = (controls.fwd ? 0.5 : -0.5)*seconds;
-	
-		x += inc*fwd.x;
-		y += inc*fwd.y;
-		z += inc*fwd.z;
-		w += inc*fwd.w;
-
-		mag = Math.sqrt(x*x+y*y+z*z+w*w);
-		norm = (mag > 10) ? 10/mag : 1;	
-		
+	if(controls.fwd){
+		this.speed += 0.5*seconds;
+		if(this.speed > 10){ this.speed = 10; }
+	}else if(controls.bak){
+		this.speed -= 0.5*seconds;
+		if(this.speed < -10){ this.speed = -10; }
 	}else{
-		inc = mag / Math.pow(25,seconds);
-		norm = inc/mag;
-			
-		if(inc < .001 && inc > -.001){
-			norm = 0;
-		}
+		this.speed /= Math.pow(40,seconds);
+		if(Math.abs(this.speed) < .001){ this.speed = 0; }
 	}
-
-	speed.mag = mag*norm;
-	speed.x = x*norm;
-	speed.y = y*norm;
-	speed.z = z*norm;
-	speed.w = w*norm;
-	
 };
 
 Player.prototype.update = function(controls, map, seconds) {

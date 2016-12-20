@@ -44,7 +44,7 @@ function Camera(canvas, map, hfov, textures){
 		);
 
 		// Tell WebGL how to convert from clip space to pixels
-		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+		gl.viewport(0, 0, canvas.width, canvas.height);
 
 		gl.useProgram(program);
 
