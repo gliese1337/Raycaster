@@ -62,15 +62,33 @@ float cast_comp(vec4 v, float o, out int sign, out int m){
 vec4 calc_tex(int dim, vec4 ray){
 
 	ray -= floor(ray);
-
-	if(dim == 1){ return texture2D(u_textures[0], ray.yz); }
-	if(dim == 2){ return texture2D(u_textures[1], ray.zx); }
-	if(dim == 3){ return texture2D(u_textures[2], ray.xy); }
-	if(dim == 4){ return texture2D(u_textures[3], ray.yx); }
-	if(dim == -1){ return texture2D(u_textures[0], ray.yz); }
-	if(dim == -2){ return texture2D(u_textures[1], ray.zx); }
-	if(dim == -3){ return texture2D(u_textures[2], ray.xy); }
-	return texture2D(u_textures[3], ray.yx);
+	vec4 tcoords = 2.0*ray - 1.0;
+	
+	if(dim == 1 || dim == -1){ 
+		float r = length(tcoords.yzw);
+		if(r > 0.6 && r < 0.7)
+			return vec4(0.49, 0.976, 1.0, 1.0);
+		return vec4(0.5,0.5,0.7,1.0);
+	}
+	if(dim == 2 || dim == -2){ 
+		float r = length(tcoords.xzw);
+		if(r > 0.6 && r < 0.7)
+			return vec4(1.0, 0.976, 0.49, 1.0);
+		return vec4(0.7,0.5,0.5,1.0);
+	}
+	if(dim == 3 || dim == -3){ 
+		float r = length(tcoords.xyw);
+		if(r > 0.6 && r < 0.7)
+			return vec4(0.49, 1.0, 0.976, 1.0);
+		return vec4(0.5,0.7,0.5,1.0);
+	}
+	if(dim == 4 || dim == -4){ 
+		float r = length(tcoords.xyw);
+		if(r > 0.6 && r < 0.7)
+			return vec4(1.0, 1.0, 0.2, 1.0);
+		return vec4(0.6,0.6,0.5,1.0);
+	}
+	return vec4(0.0,0.0,0.0,1.0);
 }
 
 vec4 cast_vec(vec4 o, vec4 v, float range){
