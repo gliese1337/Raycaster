@@ -107,12 +107,17 @@ Camera.prototype.render = function(player){
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
 
-function Overlay(canvas){
+function Overlay(canvas, len){
 	this.ctx = canvas.getContext('2d');
 	this.fps = [];
+	this.len = len;
 }
 
-Overlay.prototype.tick = function(player, seconds){
+function get_angle(c){
+	return Math.round(180*Math.acos(c)/Math.PI);
+}
+
+Overlay.prototype.tick = function(player, covered, seconds){
 	var fps, fpsWin = this.fps,
 		ctx = this.ctx;
 	if(fpsWin.length > 20){ fpsWin.shift(); }
@@ -124,6 +129,19 @@ Overlay.prototype.tick = function(player, seconds){
 	ctx.font = "10px Calibri";
 	ctx.fillStyle = "#FFFFFF";
 	ctx.fillText("FPS: "+fps+(fps == Math.floor(fps) ? ".0":""), 5, 10);
+	ctx.fillText("Position: x: "+
+				Math.floor(player.x)+
+				" y: "+Math.round(player.y)+
+				" z: "+Math.floor(player.z)+
+				" w: "+Math.floor(player.w),
+				5, ctx.canvas.height - 30);
+	ctx.fillText("Orientation: x: "+
+				get_angle(player.fwd.x)+
+				" y: "+get_angle(player.fwd.y)+
+				" z: "+get_angle(player.fwd.z)+
+				" w: "+get_angle(player.fwd.w),
+				5, ctx.canvas.height - 20);
+	ctx.fillText("Progress: "+Math.round(100*covered/this.len)+"%", 5, ctx.canvas.height - 10);
 }
 
 function main(display, overlay){
@@ -144,13 +162,14 @@ function main(display, overlay){
 	var controls = new Controls();
 	var camera = new Camera(display, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
-	var overlay = new Overlay(overlay);
 
-	var fps = [];
+	var overlay = new Overlay(overlay, path.length + 1);
+
+	var covered = 0;
 	var loop = new GameLoop(function(seconds){
 		var cx,cy,cz,cw, val,
 			change = player.update(controls.states, map, seconds);
-		overlay.tick(player, seconds);
+		overlay.tick(player, covered, seconds);
 		if(change){
 			cx = Math.floor(player.x);
 			cy = Math.floor(player.y);
@@ -161,6 +180,7 @@ function main(display, overlay){
 			if(val === 1 || val === 2){
 				map.set(cx,cy,cz,cw,0);
 				camera.setCell(cx,cy,cz,cw,0);
+				covered++;
 			}
 
 			camera.render(player);
