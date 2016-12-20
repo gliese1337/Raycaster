@@ -40,7 +40,7 @@ var Raycast = (function(){
 		if(x < 0){ x += SIZE; }
 		if(y < 0){ y += SIZE; }
 		if(z < 0){ z += SIZE; }
-		if(w < 0){ z += SIZE; }
+		if(w < 0){ w += SIZE; }
 		return map[w][z][y][x];
 	}
 
@@ -111,7 +111,7 @@ var Raycast = (function(){
 				mx += sx;
 				distance = xdist;
 				xdist += xdelta;
-				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw) == 3){
 					xmax = distance * v.x;
 					count++;
 				}
@@ -120,7 +120,7 @@ var Raycast = (function(){
 				my += sy;
 				distance = ydist;
 				ydist += ydelta;
-				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw) == 3){
 					ymax = distance * v.y;
 					count++;
 				}
@@ -129,7 +129,7 @@ var Raycast = (function(){
 				mz += sz;
 				distance = zdist;
 				zdist += zdelta;
-				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw) == 3){
 					zmax = distance * v.z;
 					count++;
 				}
@@ -138,7 +138,7 @@ var Raycast = (function(){
 				mw += sw;
 				distance = wdist;
 				wdist += wdelta;
-				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw)){
+				if(!isFinite(xmax) && get_cell(SIZE, map, mx, my, mz, mw) == 3){
 					wmax = distance * v.w;
 					count++;
 				}
