@@ -148,7 +148,7 @@ function main(display, overlay){
 
 	var fps = [];
 	var loop = new GameLoop(function(seconds){
-		var cx,cy,cz,cw,
+		var cx,cy,cz,cw, val,
 			change = player.update(controls.states, map, seconds);
 		overlay.tick(player, seconds);
 		if(change){
@@ -157,7 +157,8 @@ function main(display, overlay){
 			cz = Math.floor(player.z);
 			cw = Math.floor(player.w);
 			
-			if(map.get(cx,cy,cz,cw) != 0){
+			val = map.get(cx,cy,cz,cw);
+			if(val === 1 || val === 2){
 				map.set(cx,cy,cz,cw,0);
 				camera.setCell(cx,cy,cz,cw,0);
 			}
