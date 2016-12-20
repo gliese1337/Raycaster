@@ -1,6 +1,6 @@
-var SIZE = 5;
+const SIZE = 5;
 
-function Controls() {
+function Controls(){
 	"use strict";
 	this.codes  = {
 		// space, shift, & alt
@@ -40,19 +40,17 @@ function Controls() {
 	document.addEventListener('keyup', this.onKey.bind(this, 0), false);
 }
 
-Controls.prototype.onKey = function(val, e) {
+Controls.prototype.onKey = function(val, e){
 	"use strict";
-	var states, keys, count,
-		key = this.codes[e.keyCode];
+	let key = this.codes[e.keyCode];
+	if(typeof key === 'undefined'){ return; }
 
-	if (typeof key === 'undefined') return;
 	e.preventDefault && e.preventDefault();
 	e.stopPropagation && e.stopPropagation();
 
-	keys = this.keys;
+	let states = this.states;
+	let keys = this.keys;
 	keys[key] = val;
-
-	states = this.states;
 
 	if(keys.sft){
 		states.fwd = false;
@@ -143,11 +141,15 @@ Player.prototype.rotate = function(v,k,angle){
 	//console.log("Rotate",v,k);
 };
 
-Player.prototype.translate = function(seconds, map) {
+Player.prototype.translate = function(seconds, map){
 	"use strict";
-	var dx, dy, dz, dw,
-		fwd = this.fwd,
-		inc = this.speed * seconds;
+	let	fwd = this.fwd;
+	let inc = this.speed * seconds;
+
+	let dx = fwd.x * inc;
+	let dy = fwd.y * inc;
+	let dz = fwd.z * inc;
+	let dw = fwd.w * inc;
 
 	/*
 	tmp = Raycast(this, fwd, SIZE*2, SIZE, map.grid);
@@ -155,14 +157,7 @@ Player.prototype.translate = function(seconds, map) {
 	ymax = Math.max(tmp.ymax-.01,0);
 	zmax = Math.max(tmp.zmax-.01,0);
 	wmax = Math.max(tmp.wmax-.01,0);
-	*/
-
-	dx = fwd.x * inc;
-	dy = fwd.y * inc;
-	dz = fwd.z * inc;
-	dw = fwd.w * inc;
-
-	/*
+	
 	if(Math.abs(dx) > xmax){
 		dx = (dx > 0 ? xmax : -xmax) - dx;
 		speed.x *= -1;
@@ -190,18 +185,18 @@ Player.prototype.translate = function(seconds, map) {
 Player.prototype.update_speed = function(controls, seconds){
 	if(controls.fwd){
 		this.speed += 0.5*seconds;
-		if(this.speed > 10){ this.speed = 10; }
+		if(this.speed > 6){ this.speed = 6; }
 	}else if(controls.bak){
 		this.speed -= 0.5*seconds;
-		if(this.speed < -10){ this.speed = -10; }
+		if(this.speed < -6){ this.speed = -6; }
 	}else{
 		this.speed /= Math.pow(40,seconds);
 		if(Math.abs(this.speed) < .001){ this.speed = 0; }
 	}
 };
 
-Player.prototype.update = function(controls, map, seconds) {
-	var moved = false;
+Player.prototype.update = function(controls, map, seconds){
+	let moved = false;
 
 	if(controls.pup){
 		this.rotate(controls.vp, controls.kp, seconds * Math.PI/3);
@@ -237,17 +232,17 @@ Player.prototype.update = function(controls, map, seconds) {
 	return moved;
 };
 
-function GameLoop(body) {
+function GameLoop(body){
 	"use strict";
 	this.lastTime = 0;
 	this.body = body;
 	this.stop = false;
 }
 
-GameLoop.prototype.start = function() {
+GameLoop.prototype.start = function(){
 	"use strict";
-	var that = this;
-	requestAnimationFrame(function frame(time) {
+	let that = this;
+	requestAnimationFrame(function frame(time){
 		var seconds = (time - that.lastTime) / 1000;
 		that.lastTime = time;
 		that.body(seconds);

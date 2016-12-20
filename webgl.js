@@ -1,7 +1,5 @@
 function Camera(canvas, map, hfov, textures){
-	// Get A WebGL context
-	var gl = canvas.getContext("webgl");
-	if (!gl){ throw new Error("No WebGL Support"); }
+	let gl = canvas.getContext("webgl");
 
 	this.gl = gl;
 	this.canvas = canvas;
@@ -16,7 +14,6 @@ function Camera(canvas, map, hfov, textures){
 	this.fwdLoc = null;
 
 	// Create a buffer and put a single rectangle in it
-	// (2 triangles)
 	gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
 		-1, -1,	1, -1,	-1, 1,
@@ -24,13 +21,13 @@ function Camera(canvas, map, hfov, textures){
 	]), gl.STATIC_DRAW);
 
 	// compile the shaders and link into a program
-	var promise = GL_Utils.createProgramFromScripts(gl, ["vertex-shader", "fragment-shader"])
-	.then(function(program){
+	let promise = GL_Utils.createProgramFromScripts(gl, ["vertex-shader", "fragment-shader"])
+	.then((program) => {
 
 		this.program = program;
 
 		// look up where the vertex data needs to go.
-		var posAttrLoc = gl.getAttribLocation(program, "a_position");
+		let posAttrLoc = gl.getAttribLocation(program, "a_position");
 
 		// Turn on the attribute
 		gl.enableVertexAttribArray(posAttrLoc);
@@ -51,8 +48,8 @@ function Camera(canvas, map, hfov, textures){
 		gl.useProgram(program);
 
 		// look up uniform locations
-		var mapLoc = gl.getUniformLocation(program, "u_map");
-		var textureLoc = gl.getUniformLocation(program, "u_textures");
+		let mapLoc = gl.getUniformLocation(program, "u_map");
+		let textureLoc = gl.getUniformLocation(program, "u_textures");
 
 		this.resLoc = gl.getUniformLocation(program, "u_resolution");
 		this.depthLoc = gl.getUniformLocation(program, "u_depth");
@@ -66,15 +63,15 @@ function Camera(canvas, map, hfov, textures){
 		gl.uniform2f(this.resLoc, canvas.width, canvas.height);
 		gl.uniform1f(this.depthLoc, canvas.width/(2*Math.tan(hfov/2)));
 		gl.uniform1iv(mapLoc, map.flatten());
-		gl.uniform1iv(textureLoc, textures.map(function(_,i){ return i; }));
+		gl.uniform1iv(textureLoc, textures.map((_,i) => i));
 
 		//load textures
 		return Promise.all(textures.map(function(src,i){
-			var image = new Image();
+			let image = new Image();
 			image.src = src;
 			return new Promise(function(resolve){
 				image.addEventListener("load",function(){
-					var tex = gl.createTexture();
+					let tex = gl.createTexture();
 					gl.activeTexture(gl.TEXTURE0 + i);
 					gl.bindTexture(gl.TEXTURE_2D, tex);
 					gl.texImage2D(
@@ -87,7 +84,7 @@ function Camera(canvas, map, hfov, textures){
 				});
 			});
 		}));
-	}.bind(this));
+	});
 
 	this.onready = promise.then.bind(promise);
 }
@@ -101,14 +98,14 @@ Camera.prototype.resize = function(w,h){
 };
 
 Camera.prototype.setCell = function(x,y,z,w,val){
-	var gl = this.gl,
-		idx = this.map.cellIndex(x,y,z,w),
-		mapLoc = gl.getUniformLocation(this.program, "u_map["+idx+"]");
+	let gl = this.gl;
+	let idx = this.map.cellIndex(x,y,z,w);
+	let mapLoc = gl.getUniformLocation(this.program, "u_map["+idx+"]");
 	gl.uniform1i(mapLoc, val);
 };
 
 Camera.prototype.render = function(player){
-	var gl = this.gl;
+	let gl = this.gl;
 	gl.uniform4f(this.originLoc, player.x, player.y, player.z, player.w);
 	gl.uniform4f(this.rgtLoc, player.rgt.x, player.rgt.y, player.rgt.z, player.rgt.w);
 	gl.uniform4f(this.upLoc, player.up.x, player.up.y, player.up.z, player.up.w);
@@ -120,7 +117,7 @@ Camera.prototype.render = function(player){
 function Overlay(canvas, len){
 	this.canvas = canvas;
 	this.ctx = canvas.getContext('2d');
-	this.fps = [];
+	this.fpsw = [];
 	this.len = len;
 }
 
@@ -134,12 +131,12 @@ function get_angle(c){
 }
 
 Overlay.prototype.tick = function(player, covered, seconds){
-	var fps, fpsWin = this.fps,
-		canvas = this.canvas,
-		ctx = this.ctx;
-	if(fpsWin.length > 20){ fpsWin.shift(); }
-	fpsWin.push(1/seconds);
-	fps = fpsWin.reduce(function(a,n){ return a + n; })/fpsWin.length;
+	let {canvas, ctx, fpsw} = this;
+
+	if(fpsw.length > 20){ fpsw.shift(); }
+	fpsw.push(1/seconds);
+
+	let fps = fpsw.reduce(function(a,n){ return a + n; })/fpsw.length;
 	fps = Math.round(fps*10)/10;
 	
 	ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -161,10 +158,10 @@ Overlay.prototype.tick = function(player, covered, seconds){
 	ctx.fillText("Progress: "+Math.round(100*covered/this.len)+"%", 5, canvas.height - 10);
 }
 
-function main(display, overlay){
+function main(d, o){
 	"use strict";
 
-	var map = new Maze(SIZE),
+	let map = new Maze(SIZE),
 		path = map.getLongestPath(),
 		start = path.shift(),
 		end = path.pop();
@@ -175,12 +172,12 @@ function main(display, overlay){
 		map.set(cell.x,cell.y,cell.z,cell.w,1);
 	});
 
-	var player = new Player(start.x+.5, start.y+.5, start.z+.5, start.w+.5);
-	var controls = new Controls();
-	var camera = new Camera(display, map, Math.PI / 1.5,
+	let player = new Player(start.x+.5, start.y+.5, start.z+.5, start.w+.5);
+	let controls = new Controls();
+	let camera = new Camera(d, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
 
-	var overlay = new Overlay(overlay, path.length + 1);
+	let overlay = new Overlay(o, path.length + 1);
 
 	window.addEventListener('resize',() => {
 		let w = window.innerWidth;
@@ -189,18 +186,19 @@ function main(display, overlay){
 		camera.resize(w,h);
 	},false);
 	
-	var covered = 0;
-	var loop = new GameLoop(function(seconds){
-		var cx,cy,cz,cw, val,
-			change = player.update(controls.states, map, seconds);
+	let covered = 0;
+	let loop = new GameLoop(function(seconds){
+		let change = player.update(controls.states, map, seconds);
+
 		overlay.tick(player, covered, seconds);
+
 		if(change){
-			cx = Math.floor(player.x);
-			cy = Math.floor(player.y);
-			cz = Math.floor(player.z);
-			cw = Math.floor(player.w);
+			let cx = Math.floor(player.x);
+			let cy = Math.floor(player.y);
+			let cz = Math.floor(player.z);
+			let cw = Math.floor(player.w);
 			
-			val = map.get(cx,cy,cz,cw);
+			let val = map.get(cx,cy,cz,cw);
 			if(val === 1 || val === 2){
 				map.set(cx,cy,cz,cw,0);
 				camera.setCell(cx,cy,cz,cw,0);

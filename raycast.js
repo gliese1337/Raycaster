@@ -1,34 +1,33 @@
-var Raycast = (function(){
+let Raycast = (function(){
 	"use strict";
 
 	function normalize(v){
-		var mag = Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z+v.w*v.w);
+		let mag = Math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z+v.w*v.w);
 		return { x: v.x/mag, y: v.y/mag, z: v.z/mag, w: v.w/mag };
 	}
 
 	// Find the distance to the next cell boundary
 	// for a particular vector component
 	function cast_comp(x, y, z, w, o){
-		var scale, delta,
-			sign, m;
+		let delta, s, m;
 		if(x > 0){
-			sign = 1;
+			s = 1;
 			m = Math.floor(o);
 			delta = m + 1.0 - o;
 		}else{
-			sign = -1;
+			s = -1;
 			m = Math.ceil(o - 1.0);
 			delta = m - o;
 		}
 
-		scale = delta/x;
+		let scale = delta/x;
 		y = y*scale||0;
 		z = z*scale||0;
 		w = w*scale||0;
 
 		return {
-			sign: sign, m: m,
-			dist: Math.sqrt(delta*delta + y*y + z*z + w*w)
+			s: sign, m: m,
+			d: Math.sqrt(delta*delta + y*y + z*z + w*w)
 		};
 	}
 
@@ -52,58 +51,45 @@ var Raycast = (function(){
 		// check for a wall (inspect). Then we repeat until we've
 		// traced the entire length of the ray.
 
-		var sx, sy, sz, sw,
-			mx, my, mz, mw,
-			xmax, ymax, zmax, wmax,
-			xdelta, ydelta, zdelta, wdelta,
-			xdist, ydist, zdist, wdist,
-			value, dim, tmp, i,
-			distance = 0,
-			count = 0;
-
 		v = normalize(v);
-			
+		
+		let count = 0;
+		
 		// Inverting the elements of a normalized vector
 		// gives the distance you have to move along that
 		// vector to hit a cell boundary perpendicular
 		// to that dimension.
-		xdelta = Math.abs(1/v.x);
-		xmax = 1/0;
+
+		let xmax = 1/0;
+		let xdelta = Math.abs(1/v.x);
 		if(!isFinite(xdelta)){ count++; }
 		
-		ydelta = Math.abs(1/v.y);
-		ymax = 1/0;
+		let ymax = 1/0;
+		let ydelta = Math.abs(1/v.y);
 		if(!isFinite(ydelta)){ count++; }
 
-		zdelta = Math.abs(1/v.z);
-		zmax = 1/0;
+		let zmax = 1/0;
+		let zdelta = Math.abs(1/v.z);
 		if(!isFinite(zdelta)){ count++; }
 
-		wdelta = Math.abs(1/v.w);
-		wmax = 1/0;
+		let wmax = 1/0;
+		let wdelta = Math.abs(1/v.w);
 		if(!isFinite(wdelta)){ count++; }
 
-		tmp = cast_comp(v.x, v.y, v.z, v.w, o.x);
-		xdist = tmp.dist;
-		sx = tmp.sign;
-		mx = tmp.m;
+		let {d: xdist, s: sx, m: mx} =
+			cast_comp(v.x, v.y, v.z, v.w, o.x);
 		
-		tmp = cast_comp(v.y, v.x, v.z, v.w, o.y);
-		ydist = tmp.dist;
-		sy = tmp.sign;
-		my = tmp.m;
+		let {d: ydist, s: sy, m: my} =
+			cast_comp(v.y, v.x, v.z, v.w, o.y);
 
-		tmp = cast_comp(v.z, v.x, v.y, v.w, o.z);
-		zdist = tmp.dist;
-		sz = tmp.sign;
-		mz = tmp.m;
+		let {d: zdist, s: sz, m: mz} =
+			cast_comp(v.z, v.x, v.y, v.w, o.z);
 
-		tmp = cast_comp(v.w, v.x, v.y, v.z, o.w);
-		wdist = tmp.dist;
-		sw = tmp.sign;
-		mw = tmp.m;
-		
-		for(i = 0; i < 1000; i++) {
+		let {d: wdist, s: sw, m: mw} =
+			cast_comp(v.w, v.x, v.y, v.z, o.w);
+
+		let value, dim, distance;
+		for(let i = 0; i < 1000; i++) {
 			// Find the next closest cell boundary
 			// and increment distances appropriately
 			if(xdist <= ydist && xdist <= zdist && xdist <= wdist){		

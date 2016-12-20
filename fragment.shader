@@ -79,15 +79,6 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	// check for a wall (inspect). Then we repeat until we've
 	// traced the entire length of the ray.
 
-	int sx, sy, sz, sw;
-	int mx, my, mz, mw;
-	int dim, value;
-
-	float inc;
-	float blue = 0.0;
-	float yellow = 0.0;
-	float distance = 0.0;
-
 	v = normalize(v);
 
 	// Inverting the elements of a normalized vector
@@ -96,6 +87,8 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	// to that dimension.
 	vec4 deltas = abs(vec4(1.0/v.x, 1.0/v.y, 1.0/v.z, 1.0/v.w));
 
+	int sx, sy, sz, sw;
+	int mx, my, mz, mw;
 	float xdist = cast_comp(v.xyzw, o.x, sx, mx);
 	float ydist = cast_comp(v.yxzw, o.y, sy, my);
 	float zdist = cast_comp(v.zxyw, o.z, sz, mz);
@@ -103,6 +96,13 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 	// while loops are not allowed, so we have to use
 	// a for loop with a fixed max number of iterations
+
+	int dim, value;
+	float inc, distance;
+	
+	float blue = 0.0;
+	float yellow = 0.0;
+
 	for(int i = 0; i < 1000; i++){
 		// Find the next closest cell boundary
 		// and increment distances appropriately
@@ -139,7 +139,7 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 			yellow += inc;
 		}
 
-		if(value == 3 || distance >= range){
+		if(value == 255 || distance >= range){
 			break;
 		}
 	}
@@ -169,7 +169,7 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 void main(){
 	vec4 cell = floor(u_origin);
-	if(get_cell(int(cell.x), int(cell.y), int(cell.z), int(cell.w)) == 3){
+	if(get_cell(int(cell.x), int(cell.y), int(cell.z), int(cell.w)) == 255){
 		gl_FragColor = vec4(0,0,0,1);
 		return;
 	}
