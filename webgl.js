@@ -4,8 +4,10 @@ function Camera(canvas, map, hfov, textures){
 	if (!gl){ throw new Error("No WebGL Support"); }
 
 	this.gl = gl;
+	this.canvas = canvas;
 	this.program = null;
 	this.map = map;
+	this.fov = hfov;
 	
 	this.originLoc = null;
 
@@ -49,11 +51,11 @@ function Camera(canvas, map, hfov, textures){
 		gl.useProgram(program);
 
 		// look up uniform locations
-		var resLoc = gl.getUniformLocation(program, "u_resolution");
-		var depthLoc = gl.getUniformLocation(program, "u_depth");
 		var mapLoc = gl.getUniformLocation(program, "u_map");
 		var textureLoc = gl.getUniformLocation(program, "u_textures");
 
+		this.resLoc = gl.getUniformLocation(program, "u_resolution");
+		this.depthLoc = gl.getUniformLocation(program, "u_depth");
 		this.originLoc = gl.getUniformLocation(program, "u_origin");
 		this.rgtLoc = gl.getUniformLocation(program, "u_rgt");
 		this.upLoc = gl.getUniformLocation(program, "u_up");
@@ -61,8 +63,8 @@ function Camera(canvas, map, hfov, textures){
 		this.anaLoc = gl.getUniformLocation(program, "u_ana");
 
 		// Set Uniforms
-		gl.uniform2f(resLoc, canvas.width, canvas.height);
-		gl.uniform1f(depthLoc, canvas.width/(2*Math.tan(hfov/2)));
+		gl.uniform2f(this.resLoc, canvas.width, canvas.height);
+		gl.uniform1f(this.depthLoc, canvas.width/(2*Math.tan(hfov/2)));
 		gl.uniform1iv(mapLoc, map.flatten());
 		gl.uniform1iv(textureLoc, textures.map(function(_,i){ return i; }));
 
@@ -90,6 +92,14 @@ function Camera(canvas, map, hfov, textures){
 	this.onready = promise.then.bind(promise);
 }
 
+Camera.prototype.resize = function(w,h){
+	this.canvas.width = w;
+	this.canvas.height = h;
+	this.gl.viewport(0, 0, w, h);
+	this.gl.uniform2f(this.resLoc, w, h);
+	this.gl.uniform1f(this.depthLoc, w/(2*Math.tan(this.fov/2)));
+};
+
 Camera.prototype.setCell = function(x,y,z,w,val){
 	var gl = this.gl,
 		idx = this.map.cellIndex(x,y,z,w),
@@ -108,10 +118,16 @@ Camera.prototype.render = function(player){
 };
 
 function Overlay(canvas, len){
+	this.canvas = canvas;
 	this.ctx = canvas.getContext('2d');
 	this.fps = [];
 	this.len = len;
 }
+
+Overlay.prototype.resize = function(w,h){
+	this.canvas.width = w;
+	this.canvas.height = h;
+};
 
 function get_angle(c){
 	return Math.round(180*Math.acos(c)/Math.PI);
@@ -119,13 +135,14 @@ function get_angle(c){
 
 Overlay.prototype.tick = function(player, covered, seconds){
 	var fps, fpsWin = this.fps,
+		canvas = this.canvas,
 		ctx = this.ctx;
 	if(fpsWin.length > 20){ fpsWin.shift(); }
 	fpsWin.push(1/seconds);
 	fps = fpsWin.reduce(function(a,n){ return a + n; })/fpsWin.length;
 	fps = Math.round(fps*10)/10;
 	
-	ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+	ctx.clearRect(0,0,canvas.width,canvas.height);
 	ctx.font = "10px Calibri";
 	ctx.fillStyle = "#FFFFFF";
 	ctx.fillText("FPS: "+fps+(fps == Math.floor(fps) ? ".0":""), 5, 10);
@@ -134,14 +151,14 @@ Overlay.prototype.tick = function(player, covered, seconds){
 				" y: "+Math.round(player.y)+
 				" z: "+Math.floor(player.z)+
 				" w: "+Math.floor(player.w),
-				5, ctx.canvas.height - 30);
+				5, canvas.height - 30);
 	ctx.fillText("Orientation: x: "+
 				get_angle(player.fwd.x)+
 				" y: "+get_angle(player.fwd.y)+
 				" z: "+get_angle(player.fwd.z)+
 				" w: "+get_angle(player.fwd.w),
-				5, ctx.canvas.height - 20);
-	ctx.fillText("Progress: "+Math.round(100*covered/this.len)+"%", 5, ctx.canvas.height - 10);
+				5, canvas.height - 20);
+	ctx.fillText("Progress: "+Math.round(100*covered/this.len)+"%", 5, canvas.height - 10);
 }
 
 function main(display, overlay){
@@ -165,6 +182,13 @@ function main(display, overlay){
 
 	var overlay = new Overlay(overlay, path.length + 1);
 
+	window.addEventListener('resize',() => {
+		let w = window.innerWidth;
+		let h = window.innerHeight;
+		overlay.resize(w,h);
+		camera.resize(w,h);
+	},false);
+	
 	var covered = 0;
 	var loop = new GameLoop(function(seconds){
 		var cx,cy,cz,cw, val,
