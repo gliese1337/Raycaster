@@ -153,24 +153,36 @@ Player.prototype.translate = function(seconds, map) {
 		xmax, ymax, zmax, wmax,
 		speed = this.speed;
 
-	/*tmp = Raycast(this, geospeed, SIZE*2, SIZE, map.grid);
-	xmax = tmp.xmax;
-	ymax = tmp.ymax;
-	zmax = tmp.zmax;
-	wmax = tmp.wmax;
+	tmp = Raycast(this, speed, SIZE*2, SIZE, map.grid);
+	xmax = Math.max(tmp.xmax-.01,0);
+	ymax = Math.max(tmp.ymax-.01,0);
+	zmax = Math.max(tmp.zmax-.01,0);
+	wmax = Math.max(tmp.wmax-.01,0);
 
-	console.log(xmax, ymax, zmax, wmax);
-	*/
 	dx = speed.x * seconds;
 	dy = speed.y * seconds;
 	dz = speed.z * seconds;
 	dw = speed.w * seconds;
-/*
-	dx = dx > 0 ? Math.min(dx, xmax-.1) : Math.max(dx, -xmax+.1);
-	dy = dy > 0 ? Math.min(dy, ymax-.1) : Math.max(dy, -ymax+.1);
-	dz = dz > 0 ? Math.min(dz, zmax-.1) : Math.max(dz, -zmax+.1);
-	dw = dw > 0 ? Math.min(dw, wmax-.1) : Math.max(dw, -wmax+.1);
-*/
+
+	/*
+	if(Math.abs(dx) > xmax){
+		dx = (dx > 0 ? xmax : -xmax) - dx;
+		speed.x *= -1;
+	}
+	if(Math.abs(dy) > ymax){
+		dy = (dy > 0 ? ymax : -ymax) - dy;
+		speed.y *= -1;
+	}
+	if(Math.abs(dz) > zmax){
+		dz = (dz > 0 ? zmax : -zmax) - dz;
+		speed.z *= -1;
+	}
+	if(Math.abs(dw) > wmax){
+		dw = (dw > 0 ? wmax : -wmax) - dw;
+		speed.w *= -1;
+	}
+	*/
+	
 	this.x = (this.x + dx + SIZE) % SIZE;
 	this.y = (this.y + dy + SIZE) % SIZE;
 	this.z = (this.z + dz + SIZE) % SIZE;
@@ -219,26 +231,26 @@ Player.prototype.update = function(controls, map, seconds) {
 	var moved = false;
 
 	if(controls.pup){
-		this.rotate(controls.vp, controls.kp, seconds * Math.PI/4);
+		this.rotate(controls.vp, controls.kp, seconds * Math.PI/3);
 		moved = true;
 	}else if(controls.pdn){
-		this.rotate(controls.kp, controls.vp, seconds * Math.PI/4);
+		this.rotate(controls.kp, controls.vp, seconds * Math.PI/3);
 		moved = true;
 	}
 
 	if(controls.yrt){
-		this.rotate(controls.vy, controls.ky, seconds * Math.PI/4);
+		this.rotate(controls.vy, controls.ky, seconds * Math.PI/3);
 		moved = true;
 	}else if(controls.ylt){
-		this.rotate(controls.ky, controls.vy, seconds * Math.PI/4);
+		this.rotate(controls.ky, controls.vy, seconds * Math.PI/3);
 		moved = true;
 	}
 
 	if(controls.rrt){
-		this.rotate(controls.vr, controls.kr, seconds * Math.PI/4);
+		this.rotate(controls.vr, controls.kr, seconds * Math.PI/3);
 		moved = true;
 	}else if(controls.rlt){
-		this.rotate(controls.kr, controls.vr, seconds * Math.PI/4);
+		this.rotate(controls.kr, controls.vr, seconds * Math.PI/3);
 		moved = true;
 	}
 
