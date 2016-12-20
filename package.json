@@ -1,0 +1,16 @@
+{
+  "name": "Raycaster",
+  "version": "1.0.0",
+  "description": "A 4D maze game with raycasted graphics",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": "https://github.com/gliese1337/Raycaster",
+  "keywords": ["4D", "maze"],
+  "author": "Logan Kearsley",
+  "license": "CC0-1.0",
+  "devDependencies": {
+    "electron": "^1.4.1"
+  }
+}
