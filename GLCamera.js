@@ -82,7 +82,8 @@ function Camera(canvas, map, hfov, textures){
 			rgt: gl.getUniformLocation(program, "u_rgt"),
 			up: gl.getUniformLocation(program, "u_up"),
 			fwd: gl.getUniformLocation(program, "u_fwd"),
-			ana: gl.getUniformLocation(program, "u_ana")
+			ana: gl.getUniformLocation(program, "u_ana"),
+			seed: gl.getUniformLocation(program, "u_seed")
 		};
 
 		this.locs = locs;
@@ -92,6 +93,7 @@ function Camera(canvas, map, hfov, textures){
 		gl.uniform1f(locs.depth, canvas.width/(2*Math.tan(hfov/2)));
 		gl.uniform1iv(locs.map, map.flatten());
 		gl.uniform1iv(locs.texture, textures.map((_,i) => i));
+		gl.uniform3f(locs.seed, Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
 
 		//load textures
 		return Promise.all(textures.map(function(src,i){

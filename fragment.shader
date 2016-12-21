@@ -13,6 +13,8 @@ uniform vec4 u_up;
 uniform vec4 u_fwd;
 uniform vec4 u_ana;
 
+uniform vec3 u_seed;
+
 uniform int u_map[SIZE4];
 uniform sampler2D u_textures[4];
 
@@ -74,7 +76,7 @@ vec4 taylorInvSqrt(vec4 r){
   return 1.79284291400159 - 0.85373472095314 * r;
 }
 
-float snoise(vec3 v){ 
+float snoise(vec3 v){
 	const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
 	const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
@@ -93,10 +95,10 @@ float snoise(vec3 v){
 	vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
 
 	// Permutations
-	i = mod(i,289.0); 
-	vec4 p = permute( permute( permute( 
+	i = mod(i,289.0);
+	vec4 p = permute( permute( permute(
 			 i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-		   + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+		   + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
 		   + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
 	// Gradients: 7x7 points over a square, mapped onto an octahedron.
@@ -152,30 +154,29 @@ float layered_noise(vec3 v, int layers){
 
 float julia(vec3 v) {
 	const int iter = 10;
-    vec3 c = vec3(0.2, 0.3, -0.1);
 
 	v = v*2.0 - 1.0;
-    for(int i = 0; i < iter; i++){
-        float x = (v.x*v.x - v.y*v.y - v.z*v.z) + c.x;
-        float y = (2.0*v.x*v.y) + c.y;
-		float z = (2.0*v.x*v.z) + c.z;
+	for(int i = 0; i < iter; i++){
+		float x = (v.x*v.x - v.y*v.y - v.z*v.z) + u_seed.x;
+		float y = (2.0*v.x*v.y) + u_seed.y;
+		float z = (2.0*v.x*v.z) + u_seed.z;
 
-        if((x * x + y * y + z * z) > 4.0){
+		if((x * x + y * y + z * z) > 4.0){
 			return float(i) / float(iter);
 		}
 
-        v.x = x;
-        v.y = y;
+		v.x = x;
+		v.y = y;
 		v.z = z;
-    }
+	}
 
-    return 0.0;
+	return 0.0;
 }
 
 vec4 hsv2rgba(float h, float s, float v){
-    if(s == 0.0){
+	if(s == 0.0){
 		return vec4(v,v,v,1.0);
-    }
+	}
 
 	h = mod(h * 6.0, 6.0);
 	float region = floor(h);
@@ -183,7 +184,7 @@ vec4 hsv2rgba(float h, float s, float v){
 	float p = v * (1.0 - s);
 	float t = v * (1.0 - s*rem);
 	float q = v * (1.0 - s*(1.0 - rem));
-	
+
 	float r, g, b;
 	if     (region == 0.0) { r = v; g = q; b = p; }
 	else if(region == 1.0) { r = t; g = v; b = p; }
@@ -196,24 +197,23 @@ vec4 hsv2rgba(float h, float s, float v){
 }
 
 vec4 calc_tex(int dim, vec4 ray){
-
 	ray = fract(ray);
 	vec3 coords;
 	vec4 tint;
-	
+
 	if(dim == 1 || dim == -1){
 		coords = ray.yzw;
 		tint = red;
 	}
-	else if(dim == 2 || dim == -2){ 
+	else if(dim == 2 || dim == -2){
 		coords = ray.xzw;
 		tint = green;
 	}
-	else if(dim == 3 || dim == -3){ 
+	else if(dim == 3 || dim == -3){
 		coords = ray.xyw;
 		tint = blue;
 	}
-	else if(dim == 4 || dim == -4){ 
+	else if(dim == 4 || dim == -4){
 		coords = ray.xyz;
 		tint = yellow;
 	}
@@ -249,7 +249,7 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 	int dim, value;
 	float inc, distance;
-	
+
 	float blue = 0.0;
 	float yellow = 0.0;
 
@@ -303,15 +303,15 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	}
 
 	float clear = distance - yellow - blue;
-	
+
 	clear /= distance;
 	yellow /= distance;
 	blue /= distance;
-	
+
 	tex = tex*clear
 		+ vec4(0.71,0.71,0.0,0.0)*yellow
 		+ vec4(0.0,0.0,1.0,0.0)*blue;
-	
+
 	float dr = distance/range;
 	float alpha = 1.0 - dr*dr*dr*dr;
 	return vec4(tex.rgb, alpha);
