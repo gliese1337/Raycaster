@@ -14,7 +14,7 @@ function plan_route(map){
 
 	map.set(start.x,start.y,start.z,start.w,0);
 	map.set(end.x,end.y,end.z,end.w,2);
-	path.forEach(function(cell){
+	path.forEach((cell) => {
 		map.set(cell.x,cell.y,cell.z,cell.w,1);
 	});
 
@@ -57,8 +57,6 @@ function main(d, o){
 	let loop = new GameLoop((seconds) => {
 		let change = player.update(controls.states, map, seconds);
 
-		overlay.tick(player, covered, seconds);
-
 		if(change){
 			let cx = Math.floor(player.x);
 			let cy = Math.floor(player.y);
@@ -77,6 +75,9 @@ function main(d, o){
 				reset(camera, overlay, player);
 			}
 
+			let {dist} = camera.castRay(player);
+			overlay.tick(player, covered, seconds);
+			overlay.reticle({dist: dist});
 			camera.render(player);
 		}
 	});

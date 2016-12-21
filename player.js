@@ -85,7 +85,7 @@ Player.prototype.update_speed = function(controls, seconds){
 		this.speed -= 0.5*seconds;
 		if(this.speed < -6){ this.speed = -6; }
 	}else{
-		this.speed /= Math.pow(40,seconds);
+		this.speed /= Math.pow(100,seconds);
 		if(Math.abs(this.speed) < .001){ this.speed = 0; }
 	}
 };

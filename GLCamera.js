@@ -1,5 +1,8 @@
+const cast = require("./Raycast.js");
+
 function Camera(canvas, map, hfov, textures){
 	let gl = canvas.getContext("webgl");
+	let depth = canvas.width/(2*Math.tan(hfov/2));
 
 	this.gl = gl;
 	this.canvas = canvas;
@@ -20,7 +23,17 @@ function Camera(canvas, map, hfov, textures){
 			get: () => hfov,
 			set: function(a){
 				hfov = a;
-				gl.uniform1f(this.locs.depth, canvas.width/(2*Math.tan(hfov/2)));
+				depth = canvas.width/(2*Math.tan(hfov/2));
+				gl.uniform1f(this.locs.depth, depth);
+			}
+		},
+		
+		depth: {
+			get: () => depth,
+			set: function(d){
+				depth = d;
+				hfov = 2*Math.atan(canvas.width/(2*d));
+				gl.uniform1f(this.locs.depth, depth);
 			}
 		}
 	});
@@ -103,6 +116,29 @@ function Camera(canvas, map, hfov, textures){
 
 	this.onready = promise.then.bind(promise);
 }
+
+Camera.prototype.getRay = function(
+	player,
+	x = this.canvas.width / 2,
+	y = this.canvas.height / 2
+){
+	let {depth, canvas} = this;
+	let cx = x - canvas.width / 2;
+	let cy = y - canvas.height / 2;
+	let {fwd, rgt, up} = player;
+
+	return {
+		x: fwd.x * depth + rgt.x * cx + up.x * cy,
+		y: fwd.y * depth + rgt.y * cx + up.y * cy,
+		z: fwd.z * depth + rgt.z * cx + up.z * cy,
+		w: fwd.w * depth + rgt.w * cx + up.z * cy
+	};
+};
+
+Camera.prototype.castRay = function(player, x, y){
+	let ray = this.getRay(player, x, y);
+	return cast(player, ray, this.map.size*2, this.map);
+};
 
 Camera.prototype.resize = function(w,h){
 	let {res, depth} = this.locs;
