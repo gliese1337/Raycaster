@@ -78,13 +78,13 @@ Player.prototype.translate = function(seconds, map){
 Player.prototype.update_speed = function(controls, seconds){
 	if(controls.fwd){
 		this.speed += 0.5*seconds;
-		if(this.speed > 6){ this.speed = 6; }
+		if(this.speed > 2){ this.speed = 2; }
 	}else if(controls.bak){
 		this.speed -= 0.5*seconds;
-		if(this.speed < -6){ this.speed = -6; }
+		if(this.speed < -2){ this.speed = -2; }
 	}else{
 		this.speed /= Math.pow(100,seconds);
-		if(Math.abs(this.speed) < .001){ this.speed = 0; }
+		if(Math.abs(this.speed) < .01){ this.speed = 0; }
 	}
 };
 
@@ -130,7 +130,7 @@ Player.prototype.update = function(controls, map, seconds){
 
 	this.update_speed(controls, seconds);
 
-	if(this.speed.mag != 0){
+	if(this.speed != 0){
 		this.translate(seconds, map);
 		moved = true;
 	}

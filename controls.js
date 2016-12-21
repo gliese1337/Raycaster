@@ -3,17 +3,20 @@ function Controls(width,height){
 	this.codes  = {
 		// space, shift, & alt
 		32: 'spc', 16: 'sft',
-		// left & right arrow, a & d, 4 & 6
+		// left & right arrow, a & d, j & l, 4 & 6
 		37: 'lft', 39: 'rgt',
 		65: 'lft', 68: 'rgt',
+		74: 'lft', 76: 'rgt',
 		100: 'lft', 102: 'rgt',
-		// q & e, 7 & 9
+		// q & e, u & o, 7 & 9
 		81: 'rlt', 69: 'rrt',
 		36: 'rlt', 33: 'rrt',
+		85: 'rlt', 79: 'rrt',
 		103: 'rlt', 105: 'rrt',
-		// up & down arrow, w & s, 8 & 5
+		// up & down arrow, w & s, i & k, 8 & 5
 		38: 'up', 40: 'dwn',
 		87: 'up', 83: 'dwn',
+		73: 'up', 75: 'dwn',
 		104: 'up', 101: 'dwn',
 		12: 'dwn',
 		// z x c & , . /
@@ -86,6 +89,7 @@ Controls.prototype.onMouse = function(val, e){
 Controls.prototype.onKey = function(val, e){
 	"use strict";
 	let key = this.codes[e.keyCode];
+
 	if(typeof key === 'undefined'){ return; }
 
 	e.preventDefault && e.preventDefault();
