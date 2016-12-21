@@ -33,7 +33,8 @@ function Controls(width,height){
 		lft: 0, rgt: 0,
 		rlt: 0, rrt: 0,
 		up: 0, dwn: 0,
-		x: 0, y: 0, z: 0
+		x: 0, y: 0, z: 0,
+		lmb: 0, rmb: 0
 	};
 	this.states = {
 		fwd: false, bak: false,
@@ -71,17 +72,35 @@ function Controls(width,height){
 
 Controls.prototype.onMouse = function(val, e){
 	let {width, height, states, keys} = this;
+	let button = e.button;
+	if(button !== 0 && button !== 2){ return; }
 	if(val == 1){
-		states.mouse = true;
-		states.fwd = !keys.sft;
+
+		if(button === 2){
+			keys.rmb = 1;
+		}else{
+			keys.lmb = 1;
+			states.fwd = !keys.sft;
+			states.bak = false;
+		}
+
 		states.mouseX = e.pageX - width/2;
 		states.mouseY = e.pageY - height/2;
 		states.clipX = 2*(states.mouseX / width);
 		states.clipY = 2*(states.mouseY / height);
+
+		states.mouse = true;
 		document.body.style.cursor = "none";
 	}else if(val == -1){
-		states.mouse = false;
-		states.fwd = !!this.keys.spc && !keys.sft;
+		if(button === 2){
+			keys.rmb = 0;
+		}else{
+			keys.lmb = 0;
+			states.fwd = !!this.keys.spc && !keys.sft;
+			states.bak = !!this.keys.spc && keys.sft;
+		}
+
+		states.mouse = keys.lmb || keys.rmb;
 		document.body.style.cursor = "default";
 	}else if(states.mouse){
 		states.mouseX = e.pageX - width/2;
@@ -108,9 +127,9 @@ Controls.prototype.onKey = function(val, e){
 
 	if(keys.sft){
 		states.fwd = false;
-		states.bak = !!keys.spc;
+		states.bak = !!keys.spc && !keys.lmb;
 	}else if(!keys.sft){
-		states.fwd = !!keys.spc || states.mouse;
+		states.fwd = !!keys.spc || keys.lmb;
 		states.bak = false;
 	}
 	
