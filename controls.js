@@ -1,4 +1,4 @@
-function Controls(){
+function Controls(width,height){
 	"use strict";
 	this.codes  = {
 		// space, shift, & alt
@@ -33,10 +33,55 @@ function Controls(){
 		pup: false, pdn: false, vp: 'z', kp: 'y',
 		ylt: false, yrt: false, vy: 'z', ky: 'x',
 		rlt: false, rrt: false, vr: 'x', kr: 'y',
+		mouse: false, mouseX: 0, mouseY: 0,
+		clipX: 0, clipY: 0
 	};
+	
+	Object.defineProperties(this,{
+		width: {
+			get: () => width,
+			set: (w) => {
+				this.states.mouseX + (width - w)/2;
+				width = w;
+			}
+		},
+		height: {
+			get: () => height,
+			set: (h) => {
+				this.states.mouseY + (height - h)/2;
+				height = h;
+			}
+		}				
+	});
+
 	document.addEventListener('keydown', this.onKey.bind(this, 1), false);
 	document.addEventListener('keyup', this.onKey.bind(this, 0), false);
+	document.addEventListener('mousedown', this.onMouse.bind(this, 1), false);
+	document.addEventListener('mousemove', this.onMouse.bind(this, 0), false);
+	document.addEventListener('mouseup', this.onMouse.bind(this, -1), false);
 }
+
+Controls.prototype.onMouse = function(val, e){
+	let {width, height, states, keys} = this;
+	if(val == 1){
+		states.mouse = true;
+		states.fwd = !keys.sft;
+		states.mouseX = e.pageX - width/2;
+		states.mouseY = e.pageY - height/2;
+		states.clipX = 2*(states.mouseX / width);
+		states.clipY = 2*(states.mouseY / height);
+		document.body.style.cursor = "none";
+	}else if(val == -1){
+		states.mouse = false;
+		states.fwd = !!this.keys.spc && !keys.sft;
+		document.body.style.cursor = "default";
+	}else if(states.mouse){
+		states.mouseX = e.pageX - width/2;
+		states.mouseY = e.pageY - height/2;
+		states.clipX = 2*(states.mouseX / width);
+		states.clipY = 2*(states.mouseY / height);
+	}
+};
 
 Controls.prototype.onKey = function(val, e){
 	"use strict";
@@ -54,7 +99,7 @@ Controls.prototype.onKey = function(val, e){
 		states.fwd = false;
 		states.bak = !!keys.spc;
 	}else if(!keys.sft){
-		states.fwd = !!keys.spc;
+		states.fwd = !!keys.spc || states.mouse;
 		states.bak = false;
 	}
 	

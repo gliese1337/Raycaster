@@ -115,6 +115,19 @@ Player.prototype.update = function(controls, map, seconds){
 		moved = true;
 	}
 
+	if(controls.mouse){
+		let {clipX: x, clipY: y} = controls;
+		moved = true;
+		
+		if(x !== 0){
+			this.rotate('z', 'x', seconds * x * Math.PI/3);
+		}
+
+		if(y !== 0){
+			this.rotate('y', 'z', seconds * y * Math.PI/3);
+		}
+	}
+
 	this.update_speed(controls, seconds);
 
 	if(this.speed.mag != 0){

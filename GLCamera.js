@@ -117,14 +117,8 @@ function Camera(canvas, map, hfov, textures){
 	this.onready = promise.then.bind(promise);
 }
 
-Camera.prototype.getRay = function(
-	player,
-	x = this.canvas.width / 2,
-	y = this.canvas.height / 2
-){
-	let {depth, canvas} = this;
-	let cx = x - canvas.width / 2;
-	let cy = y - canvas.height / 2;
+Camera.prototype.getRay = function(player, cx = 0, cy = 0){
+	let depth = this.depth;
 	let {fwd, rgt, up} = player;
 
 	return {

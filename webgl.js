@@ -42,7 +42,7 @@ function main(d, o){
 	let map = new Maze(SIZE);
 	let {start: {x, y, z, w}, length} = plan_route(map);
 	let player = new Player(x+.5, y+.5, z+.5, w+.5);
-	let controls = new Controls();
+	let controls = new Controls(d.width, d.height);
 	let camera = new Camera(d, map, Math.PI / 1.5,
 		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
 
@@ -53,11 +53,14 @@ function main(d, o){
 		let h = window.innerHeight;
 		overlay.resize(w,h);
 		camera.resize(w,h);
+		controls.width = w;
+		controls.height = h;
 	},false);
 	
 	let covered = 0;
+	let states = controls.states;
 	let loop = new GameLoop((seconds) => {
-		let change = player.update(controls.states, map, seconds);
+		let change = player.update(states, map, seconds);
 
 		if(change){
 			let cx = Math.floor(player.x);
@@ -77,10 +80,17 @@ function main(d, o){
 				map = reset(camera, overlay, player);
 			}
 
-			let {dist} = camera.castRay(player);
-			overlay.tick(player, covered, seconds);
-			overlay.reticle({dist: dist});
 			camera.render(player);
+			overlay.tick(player, covered, seconds);
+			
+			if(states.mouse){
+				let {mouseX: x, mouseY: y} = states;
+				let {dist} = camera.castRay(player, x, y);
+				overlay.reticle({x: x, y: y, dist: dist});
+			}else{
+				let {dist} = camera.castRay(player);
+				overlay.reticle({dist: dist});
+			}
 		}
 	});
 

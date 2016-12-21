@@ -14,12 +14,12 @@ function get_angle(c){
 	return Math.round(180*Math.acos(c)/Math.PI);
 }
 
-Overlay.prototype.reticle = function({
-	x = this.canvas.width/2,
-	y = this.canvas.height/2,
-	dist
-} = {}){
+Overlay.prototype.reticle = function({x = 0, y = 0, dist} = {}){
 	let ctx = this.ctx;
+
+	x += this.canvas.width/2;
+	y += this.canvas.height/2;
+
 	ctx.lineWidth = 2;
     ctx.strokeStyle = "#00FF00";
 	ctx.beginPath();
