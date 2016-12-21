@@ -1,3 +1,5 @@
+const cast = require("./Raycast.js");
+
 function Player(x, y, z, w){
 	"use strict";
 	this.x = x;
@@ -15,6 +17,7 @@ function Player(x, y, z, w){
 
 //Rotate a vector in the plane defined by itself and another vector
 function vec_rot(v, k, t){
+	"use strict";
 	var cos = Math.cos(t),
 		sin = Math.sin(t);
 
@@ -38,6 +41,7 @@ Player.prototype.rotate = function(v,k,angle){
 
 Player.prototype.translate = function(seconds, map){
 	"use strict";
+	let SIZE = map.size;
 	let	fwd = this.fwd;
 	let inc = this.speed * seconds;
 
@@ -46,30 +50,24 @@ Player.prototype.translate = function(seconds, map){
 	let dz = fwd.z * inc;
 	let dw = fwd.w * inc;
 
-	/*
-	tmp = Raycast(this, fwd, SIZE*2, SIZE, map.grid);
-	xmax = Math.max(tmp.xmax-.01,0);
-	ymax = Math.max(tmp.ymax-.01,0);
-	zmax = Math.max(tmp.zmax-.01,0);
-	wmax = Math.max(tmp.wmax-.01,0);
+	let {dist} = cast(this, fwd, map.size*2, map);
+	let xmax = Math.max(Math.abs(fwd.x*dist)-.01,0);
+	let ymax = Math.max(Math.abs(fwd.y*dist)-.01,0);
+	let zmax = Math.max(Math.abs(fwd.z*dist)-.01,0);
+	let wmax = Math.max(Math.abs(fwd.w*dist)-.01,0);
 	
 	if(Math.abs(dx) > xmax){
-		dx = (dx > 0 ? xmax : -xmax) - dx;
-		speed.x *= -1;
+		dx = (dx > 0 ? xmax : -xmax);
 	}
 	if(Math.abs(dy) > ymax){
-		dy = (dy > 0 ? ymax : -ymax) - dy;
-		speed.y *= -1;
+		dy = (dy > 0 ? ymax : -ymax);
 	}
 	if(Math.abs(dz) > zmax){
-		dz = (dz > 0 ? zmax : -zmax) - dz;
-		speed.z *= -1;
+		dz = (dz > 0 ? zmax : -zmax);
 	}
 	if(Math.abs(dw) > wmax){
-		dw = (dw > 0 ? wmax : -wmax) - dw;
-		speed.w *= -1;
+		dw = (dw > 0 ? wmax : -wmax);
 	}
-	*/
 	
 	this.x = (this.x + dx + SIZE) % SIZE;
 	this.y = (this.y + dy + SIZE) % SIZE;

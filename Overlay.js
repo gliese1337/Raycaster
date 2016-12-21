@@ -46,7 +46,9 @@ Overlay.prototype.reticle = function({
 		ctx.textAlign = "left";
 		ctx.textBaseline = "bottom";
 		ctx.fillStyle = "#00FF00";
-		ctx.fillText(""+Math.round(10*dist), x+28, y+24);
+		
+		let d = Math.round(100*dist)/10;
+		ctx.fillText(d+(d == Math.floor(d) ? ".0" : ""), x+28, y+24);
 	}
 };
 
