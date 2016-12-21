@@ -43,8 +43,7 @@ function main(d, o){
 	let {start: {x, y, z, w}, length} = plan_route(map);
 	let player = new Player(x+.5, y+.5, z+.5, w+.5);
 	let controls = new Controls(d.width, d.height);
-	let camera = new Camera(d, map, Math.PI / 1.5,
-		["texture1.jpg","texture2.jpg","texture3.jpg","texture4.jpg"]);
+	let camera = new Camera(d, map, Math.PI / 1.5);
 
 	let overlay = new Overlay(o, length);
 

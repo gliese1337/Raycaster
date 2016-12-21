@@ -16,7 +16,6 @@ uniform vec4 u_ana;
 uniform vec3 u_seed;
 
 uniform int u_map[SIZE4];
-uniform sampler2D u_textures[4];
 
 int get_cell(int x, int y, int z, int w){
 	x = int(mod(float(x),float(SIZE)));

@@ -1,6 +1,6 @@
 const cast = require("./Raycast.js");
 
-function Camera(canvas, map, hfov, textures){
+function Camera(canvas, map, hfov){
 	let gl = canvas.getContext("webgl");
 	let depth = canvas.width/(2*Math.tan(hfov/2));
 
@@ -76,7 +76,6 @@ function Camera(canvas, map, hfov, textures){
 		let locs = {
 			map: gl.getUniformLocation(program, "u_map"),
 			res: gl.getUniformLocation(program, "u_resolution"),
-			texture: gl.getUniformLocation(program, "u_textures"),
 			depth: gl.getUniformLocation(program, "u_depth"),
 			origin: gl.getUniformLocation(program, "u_origin"),
 			rgt: gl.getUniformLocation(program, "u_rgt"),
@@ -92,28 +91,7 @@ function Camera(canvas, map, hfov, textures){
 		gl.uniform2f(locs.res, canvas.width, canvas.height);
 		gl.uniform1f(locs.depth, canvas.width/(2*Math.tan(hfov/2)));
 		gl.uniform1iv(locs.map, map.flatten());
-		gl.uniform1iv(locs.texture, textures.map((_,i) => i));
 		gl.uniform3f(locs.seed, Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
-
-		//load textures
-		return Promise.all(textures.map(function(src,i){
-			let image = new Image();
-			image.src = src;
-			return new Promise(function(resolve){
-				image.addEventListener("load",function(){
-					let tex = gl.createTexture();
-					gl.activeTexture(gl.TEXTURE0 + i);
-					gl.bindTexture(gl.TEXTURE_2D, tex);
-					gl.texImage2D(
-						gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
-						gl.UNSIGNED_BYTE, image
-					);
-					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-					resolve();
-				});
-			});
-		}));
 	});
 
 	this.onready = promise.then.bind(promise);
