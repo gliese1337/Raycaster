@@ -143,13 +143,15 @@ float snoise(vec3 v){
 	return 40.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
 }
 
-float layered_noise(vec3 v, int layers){
+float layered_noise(vec3 v, int base, int octaves){
 	float acc = 0.0;
+	v *= pow(2.0, float(base));
 	for(int i = 1; i <= 16; i++){
-		if(i > layers) break; //loops can't use non-constant expressions
-		acc += snoise(v*float(i));
+		if(i > octaves) break; //loops can't use non-constant expressions
+		acc += snoise(v);
+		v *= 2.0;
 	}
-	return acc / float(layers);
+	return acc / float(octaves);
 }
 
 float julia(vec3 v) {
@@ -220,7 +222,7 @@ vec4 calc_tex(int dim, vec4 ray){
 
 	float h = julia(coords);
 	vec4 base = h == 0.0 ? grey : hsv2rgba(h, 1.0, 1.0);
-	return mix(tint, base, layered_noise(coords*4.0, 5));
+	return mix(tint, base, layered_noise(coords, 2, 5));
 }
 
 vec4 cast_vec(vec4 o, vec4 v, float range){
