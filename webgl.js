@@ -32,6 +32,8 @@ function reset(camera, overlay, player){
 	player.y += y - Math.floor(player.y);
 	player.z += z - Math.floor(player.z);
 	player.w += w - Math.floor(player.w);
+
+	return map;
 }
 
 function main(d, o){
@@ -72,7 +74,7 @@ function main(d, o){
 
 			if(val === 2){
 				covered = 0;
-				reset(camera, overlay, player);
+				map = reset(camera, overlay, player);
 			}
 
 			let {dist} = camera.castRay(player);
