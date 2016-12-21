@@ -62,6 +62,14 @@ function main(d, o){
 	let loop = new GameLoop((seconds) => {
 		let change = player.update(states, map, seconds);
 
+		if(states.zoomin && camera.fov < Math.PI){
+			camera.fov = Math.min(camera.fov + Math.PI*seconds/2, Math.PI);
+			change = true;
+		}else if(states.zoomout && camera.fov > .01){
+			camera.fov = Math.max(camera.fov - Math.PI*seconds/2, 0);
+			change = true;
+		}
+
 		if(change){
 			let cx = Math.floor(player.x);
 			let cy = Math.floor(player.y);

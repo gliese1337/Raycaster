@@ -3,6 +3,9 @@ function Controls(width,height){
 	this.codes  = {
 		// space, shift, & alt
 		32: 'spc', 16: 'sft',
+		// plus & minus
+		109: 'min', 107: 'pls',
+		189: 'min', 187: 'pls',
 		// left & right arrow, a & d, j & l, 4 & 6
 		37: 'lft', 39: 'rgt',
 		65: 'lft', 68: 'rgt',
@@ -26,6 +29,7 @@ function Controls(width,height){
 	};
 	this.keys = {
 		spc: 0, sft: 0,
+		min: 0, pls: 0,
 		lft: 0, rgt: 0,
 		rlt: 0, rrt: 0,
 		up: 0, dwn: 0,
@@ -36,6 +40,7 @@ function Controls(width,height){
 		pup: false, pdn: false, vp: 'z', kp: 'y',
 		ylt: false, yrt: false, vy: 'z', ky: 'x',
 		rlt: false, rrt: false, vr: 'x', kr: 'y',
+		zoomin: false, zoomout: false,
 		mouse: false, mouseX: 0, mouseY: 0,
 		clipX: 0, clipY: 0
 	};
@@ -89,7 +94,6 @@ Controls.prototype.onMouse = function(val, e){
 Controls.prototype.onKey = function(val, e){
 	"use strict";
 	let key = this.codes[e.keyCode];
-
 	if(typeof key === 'undefined'){ return; }
 
 	e.preventDefault && e.preventDefault();
@@ -98,6 +102,9 @@ Controls.prototype.onKey = function(val, e){
 	let states = this.states;
 	let keys = this.keys;
 	keys[key] = val;
+
+	states.zoomin = !keys.pls && keys.min;
+	states.zoomout = keys.pls && !keys.min;
 
 	if(keys.sft){
 		states.fwd = false;
