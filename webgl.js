@@ -58,6 +58,7 @@ function main(d, o){
 	},false);
 	
 	let covered = 0;
+	let rx = 0, ry = 0;
 	let states = controls.states;
 	let loop = new GameLoop((seconds) => {
 		let change = player.update(states, map, seconds);
@@ -70,6 +71,19 @@ function main(d, o){
 			change = true;
 		}
 
+		if(states.mouse){
+			({mouseX: rx, mouseY: ry} = states);
+		}else{
+			if(rx !== 0){ rx /= 2;}
+			if(Math.abs(rx) < .01){ rx = 0; }
+			if(ry !== 0){ ry /= 2;}
+			if(Math.abs(ry) < .01){ ry = 0; }
+		}
+
+		let {dist} = camera.castRay(player);
+		overlay.tick(player, covered, seconds);
+		overlay.reticle({x: rx, y: ry, dist: dist});
+			
 		if(change){
 			let cx = Math.floor(player.x);
 			let cy = Math.floor(player.y);
@@ -89,16 +103,6 @@ function main(d, o){
 			}
 
 			camera.render(player);
-			overlay.tick(player, covered, seconds);
-			
-			if(states.mouse){
-				let {mouseX: x, mouseY: y} = states;
-				let {dist} = camera.castRay(player, x, y);
-				overlay.reticle({x: x, y: y, dist: dist});
-			}else{
-				let {dist} = camera.castRay(player);
-				overlay.reticle({dist: dist});
-			}
 		}
 	});
 
