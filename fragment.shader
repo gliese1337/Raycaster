@@ -297,6 +297,13 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	return vec4(tex.rgb, alpha);
 }
 
+vec4 add_light(vec4 fwd, vec4 ray, vec4 color){
+	float t = degrees(acos(dot(fwd, ray)/length(ray)));
+	if(t > 45.0){ return color; }
+	float mult = 4.0 - t / 15.0;
+	return min(color * mult, 1.0);
+}	
+
 void main(){
 	vec4 cell = floor(u_origin);
 	if(get_cell(int(cell.x), int(cell.y), int(cell.z), int(cell.w)) == 255){
@@ -306,5 +313,6 @@ void main(){
 	vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
-	gl_FragColor = cast_vec(u_origin, ray, 10.0);
+	vec4 color = cast_vec(u_origin, ray, 10.0);
+	gl_FragColor = add_light(u_fwd, ray, color);
 }
