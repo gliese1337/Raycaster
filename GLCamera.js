@@ -75,6 +75,7 @@ function Camera(canvas, map, hfov){
 		// look up uniform locations
 		let locs = {
 			map: gl.getUniformLocation(program, "u_map"),
+			color: gl.getUniformLocation(program, "u_colorscale"),
 			res: gl.getUniformLocation(program, "u_resolution"),
 			depth: gl.getUniformLocation(program, "u_depth"),
 			origin: gl.getUniformLocation(program, "u_origin"),
@@ -92,6 +93,25 @@ function Camera(canvas, map, hfov){
 		gl.uniform1f(locs.depth, canvas.width/(2*Math.tan(hfov/2)));
 		gl.uniform1iv(locs.map, map.flatten());
 		gl.uniform3f(locs.seed, Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+
+		//load textures
+		gl.uniform1i(locs.color, 0);
+		return new Promise(function(resolve){
+			let image = new Image();
+			image.src = "colorscale.png";
+			image.addEventListener("load",function(){
+				let tex = gl.createTexture();
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, tex);
+				gl.texImage2D(
+					gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+					gl.UNSIGNED_BYTE, image
+				);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+				resolve();
+			});
+		});
 	});
 
 	this.onready = promise.then.bind(promise);

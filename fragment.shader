@@ -14,6 +14,7 @@ uniform vec4 u_fwd;
 uniform vec4 u_ana;
 
 uniform vec3 u_seed;
+uniform sampler2D u_colorscale;
 
 uniform int u_map[SIZE4];
 
@@ -68,50 +69,47 @@ const vec4 blue = vec4(0.02,0.02,0.06,1.0);
 const vec4 yellow = vec4(0.0416,0.0416,0.02,1.0);
 
 vec4 permute(vec4 x){
-     return mod(((x*34.0)+1.0)*x, 289.0);
+	return mod(((x*34.0)+1.0)*x, 289.0);
 }
 
 vec4 taylorInvSqrt(vec4 r){
-  return 1.79284291400159 - 0.85373472095314 * r;
+	return 1.79284291400159 - 0.85373472095314 * r;
 }
 
 float snoise(vec3 v){
-	const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-	const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+	const vec2 C = vec2(1.0/6.0, 1.0/3.0) ;
+	const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
 
 	// First corner
-	vec3 i  = floor(v + dot(v, C.yyy) );
-	vec3 x0 =   v - i + dot(i, C.xxx) ;
+	vec3 i = floor(v + dot(v, C.yyy));
+	vec3 x0 = v - i + dot(i, C.xxx) ;
 
 	// Other corners
 	vec3 g = step(x0.yzx, x0.xyz);
 	vec3 l = 1.0 - g;
-	vec3 i1 = min( g.xyz, l.zxy );
-	vec3 i2 = max( g.xyz, l.zxy );
+	vec3 i1 = min(g.xyz, l.zxy);
+	vec3 i2 = max(g.xyz, l.zxy);
 
-	vec3 x1 = x0 - i1 + C.xxx;
-	vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
-	vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+	vec3 x1 = x0 - i1 + C.x;
+	vec3 x2 = x0 - i2 + C.y;
+	vec3 x3 = x0 - D.y;
 
-	// Permutations
 	i = mod(i,289.0);
 	vec4 p = permute( permute( permute(
 			 i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
 		   + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
 		   + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
-	// Gradients: 7x7 points over a square, mapped onto an octahedron.
-	// The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
-	float n_ = 0.142857142857; // 1.0/7.0
+	float n_ = 1.0/7.0;
 	vec3  ns = n_ * D.wyz - D.xzx;
 
-	vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+	vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
 
 	vec4 x_ = floor(j * ns.z);
-	vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+	vec4 y_ = floor(j - 7.0 * x_ );
 
-	vec4 x = x_ *ns.x + ns.yyyy;
-	vec4 y = y_ *ns.x + ns.yyyy;
+	vec4 x = x_ *ns.x + ns.y;
+	vec4 y = y_ *ns.x + ns.y;
 	vec4 h = 1.0 - abs(x) - abs(y);
 
 	vec4 b0 = vec4( x.xy, y.xy );
@@ -145,7 +143,7 @@ float snoise(vec3 v){
 float layered_noise(vec3 v, int base, int octaves){
 	float acc = 0.0;
 	v *= pow(2.0, float(base));
-	for(int i = 1; i <= 16; i++){
+	for(int i = 1; i < 1000; i++){
 		if(i > octaves) break; //loops can't use non-constant expressions
 		acc += snoise(v);
 		v *= 2.0;
@@ -174,29 +172,6 @@ float julia(vec3 v) {
 	return 0.0;
 }
 
-vec4 hsv2rgba(float h, float s, float v){
-	if(s == 0.0){
-		return vec4(v,v,v,1.0);
-	}
-
-	h = mod(h * 6.0, 6.0);
-	float region = floor(h);
-	float rem = fract(h);
-	float p = v * (1.0 - s);
-	float t = v * (1.0 - s*rem);
-	float q = v * (1.0 - s*(1.0 - rem));
-
-	float r, g, b;
-	if     (region == 0.0) { r = v; g = q; b = p; }
-	else if(region == 1.0) { r = t; g = v; b = p; }
-	else if(region == 2.0) { r = p; g = v; b = q; }
-	else if(region == 3.0) { r = p; g = t; b = v; }
-	else if(region == 4.0) { r = q; g = p; b = v; }
-	else                   { r = v; g = p; b = t; }
-
-	return vec4(r,g,b,1.0);
-}
-
 vec4 calc_tex(int dim, vec4 ray){
 	ray = fract(ray);
 	vec3 coords;
@@ -220,8 +195,12 @@ vec4 calc_tex(int dim, vec4 ray){
 	}
 
 	float h = julia(coords);
-	vec4 base = h == 0.0 ? grey : hsv2rgba(h, 1.0, 1.0);
-	return mix(tint, base, layered_noise(coords, 2, 5));
+	if(h == 0.0){
+		return mix(tint, grey, layered_noise(coords, 3, 4));
+	}
+
+	vec4 base = texture2D(u_colorscale, vec2(h, 0.5));
+	return mix(tint, base, layered_noise(coords, 3, 5));
 }
 
 vec4 cast_vec(vec4 o, vec4 v, float range){
