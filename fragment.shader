@@ -61,12 +61,12 @@ float cast_comp(vec4 v, float o, out int sign, out int m){
 	return length(vec4(delta,delta*v.yzw/v.x));
 }
 
-const vec4 black = vec4(0.0,0.0,0.0,1.0);
-const vec4 grey = vec4(0.1,0.1,0.1,1.0);
-const vec4 red = vec4(0.06,0.02,0.02,1.0);
-const vec4 green = vec4(0.02,0.06,0.02,1.0);
-const vec4 blue = vec4(0.02,0.02,0.06,1.0);
-const vec4 yellow = vec4(0.0416,0.0416,0.02,1.0);
+const vec3 black = vec3(0.0,0.0,0.0);
+const vec3 grey = vec3(0.1,0.1,0.1);
+const vec3 red = vec3(0.06,0.02,0.02);
+const vec3 green = vec3(0.02,0.06,0.02);
+const vec3 blue = vec3(0.02,0.02,0.06);
+const vec3 yellow = vec3(0.0416,0.0416,0.02);
 
 vec4 permute(vec4 x){
 	return mod(((x*34.0)+1.0)*x, 289.0);
@@ -172,10 +172,9 @@ float julia(vec3 v) {
 	return 0.0;
 }
 
-vec4 calc_tex(int dim, vec4 ray){
+vec3 calc_tex(int dim, vec4 ray){
 	ray = fract(ray);
-	vec3 coords;
-	vec4 tint;
+	vec3 coords, tint;
 
 	if(dim == 1 || dim == -1){
 		coords = ray.yzw;
@@ -199,29 +198,29 @@ vec4 calc_tex(int dim, vec4 ray){
 		return mix(tint, grey, layered_noise(coords, 3, 4));
 	}
 
-	vec4 base = texture2D(u_colorscale, vec2(h, 0.5));
+	vec3 base = texture2D(u_colorscale, vec2(h, 0.5)).rgb;
 	return mix(tint, base, layered_noise(coords, 3, 5));
 }
 
 const float light_angle = 40.0;
 const float light_mult = 5.0;
-vec4 add_light(vec4 fwd, vec4 v, vec4 color, int dim, float distance){
+vec3 add_light(vec4 fwd, vec4 v, vec3 color, int dim, float distance){
 	float t = degrees(acos(dot(fwd, v)));
 	if(t > light_angle){ return color; }
 
 	float dm = light_mult / pow(2.0, distance);
 
 	float am;
-	if     (dim == 1){ am = abs(v.x); }
-	else if(dim == 2){ am = abs(v.y); }
-	else if(dim == 3){ am = abs(v.z); }
-	else if(dim == 4){ am = abs(v.w); }
+	if     (dim == 1 || dim == -1){ am = abs(v.x); }
+	else if(dim == 2 || dim == -2){ am = abs(v.y); }
+	else if(dim == 3 || dim == -3){ am = abs(v.z); }
+	else if(dim == 4 || dim == -4){ am = abs(v.w); }
 
 	float mult = 1.0 + dm * am * (1.0 - (t / light_angle));
 	return min(color * mult, 1.0);
 }
 
-vec4 cast_vec(vec4 o, vec4 v, float range){
+vec3 cast_vec(vec4 o, vec4 v, float range){
 	// Starting from the player, we find the nearest gridlines
 	// in each dimension. We move to whichever is closer and
 	// check for a wall (inspect). Then we repeat until we've
@@ -297,7 +296,7 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	}
 
 	vec4 ray = o + distance *  v;
-	vec4 tex = calc_tex(dim, ray);
+	vec3 tex = calc_tex(dim, ray);
 
 	float clear = distance - yellowfrac - bluefrac - redfrac;
 
@@ -307,11 +306,11 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	redfrac /= distance;
 
 	tex = tex*clear
-		+ vec4(0.71,0.71,0.0,0.0)*yellowfrac
-		+ vec4(0.0,0.0,1.0,0.0)*bluefrac
-		+ vec4(1.0,0.0,0.0,0.0)*redfrac;
+		+ vec3(0.71,0.71,0.0)*yellowfrac
+		+ vec3(0.0,0.0,1.0)*bluefrac
+		+ vec3(1.0,0.0,0.0)*redfrac;
 
-	tex = add_light(u_fwd, v, vec4(tex.rgb, 1.0), dim > 0 ? dim : -dim, distance);
+	tex = add_light(u_fwd, v, tex, dim, distance);
 
 	return tex;
 }
@@ -327,5 +326,6 @@ void main(){
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
 
-	gl_FragColor = cast_vec(u_origin, ray, 10.0);
+	vec3 color = cast_vec(u_origin, ray, 10.0);
+	gl_FragColor = vec4(color, 1.0);
 }
