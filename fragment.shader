@@ -297,10 +297,12 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	return vec4(tex.rgb, alpha);
 }
 
+const float light_angle = 40.0;
+const float light_mult = 5.0;
 vec4 add_light(vec4 fwd, vec4 ray, vec4 color){
 	float t = degrees(acos(dot(fwd, ray)/length(ray)));
-	if(t > 45.0){ return color; }
-	float mult = 4.0 - t / 15.0;
+	if(t > light_angle){ return color; }
+	float mult = (1.0+light_mult) - light_mult * t / light_angle;
 	return min(color * mult, 1.0);
 }	
 
@@ -310,6 +312,7 @@ void main(){
 		gl_FragColor = vec4(0,0,0,1);
 		return;
 	}
+
 	vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
