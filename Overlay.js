@@ -52,11 +52,12 @@ Overlay.prototype.reticle = function({x = 0, y = 0, dist} = {}){
 	}
 };
 
-Overlay.prototype.labeledValue = function(label, val){
+Overlay.prototype.labeledValue = function(label, val, format = val){
 	let {ctx} = this;
 	let lsize = ctx.measureText(label);
-	let vsize = ctx.measureText(val);
-	let height = 15; //from the font size; measureText sady omits the height
+	let vsize = ctx.measureText(format);
+	let height = 12; //from the font size; measureText sady omits the height
+
 	ctx.fillText(label, 0, 0);
 	ctx.rect(lsize.width + 4, 1, vsize.width + 4, height + 1);
 	ctx.stroke();
@@ -108,21 +109,21 @@ Overlay.prototype.orientation = function(player){
 	
 	ctx.save();	
 
-	({width, height} = this.labeledValue("Orientation: x:",get_angle(fwd.x)+""));
+	({width, height} = this.labeledValue("Orientation: x:",get_angle(fwd.x)+"","000"));
 	wtotal += width;
 
 	ctx.translate(width+4,0);
-	({width, height:nh} = this.labeledValue("y:",get_angle(fwd.y)+""));
+	({width, height:nh} = this.labeledValue("y:",get_angle(fwd.y)+"","000"));
 	wtotal += width;
 	height = Math.max(height, nh);
 	
 	ctx.translate(width+4,0);
-	({width, height:nh} = this.labeledValue("z:",get_angle(fwd.z)+""));
+	({width, height:nh} = this.labeledValue("z:",get_angle(fwd.z)+"","000"));
 	wtotal += width;
 	height = Math.max(height, nh);
 	
 	ctx.translate(width+4,0);
-	({width, height:nh} = this.labeledValue("w:",get_angle(fwd.w)+""));
+	({width, height:nh} = this.labeledValue("w:",get_angle(fwd.w)+"","000"));
 	wtotal += width;
 	height = Math.max(height, nh);
 	
@@ -152,9 +153,9 @@ Overlay.prototype.tick = function(player, covered, seconds){
 	// Draw panel
 	ctx.beginPath();
 	ctx.moveTo(0, height);
-	ctx.lineTo(0, height - 60);
-	ctx.lineTo(200, height - 60);
-	ctx.arcTo(240, height - 60, 240, height - 20, 40);
+	ctx.lineTo(0, height - 50);
+	ctx.lineTo(200, height - 50);
+	ctx.arcTo(240, height - 50, 240, height - 10, 40);
 	ctx.lineTo(240, height);
 	ctx.closePath();
 	ctx.fillStyle = "#0f0f0f";
@@ -162,12 +163,12 @@ Overlay.prototype.tick = function(player, covered, seconds){
 
 	ctx.save();
 	
-	ctx.font = "15px Calibri";
+	ctx.font = "12px Calibri";
 	ctx.textBaseline = "top";
 	ctx.fillStyle = "#02CC02";
 	ctx.strokeStyle = "#02CC02";
 	ctx.lineWidth = 1;
-	ctx.translate(5, height - 58);
+	ctx.translate(5, height - 48);
 	
 	let lh;
 	({height:lh} = this.position(player));
