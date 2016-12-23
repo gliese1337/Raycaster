@@ -61,13 +61,6 @@ float cast_comp(vec4 v, float o, out int sign, out int m){
 	return length(vec4(delta,delta*v.yzw/v.x));
 }
 
-const vec3 black = vec3(0.0,0.0,0.0);
-const vec3 grey = vec3(0.2,0.2,0.2);
-const vec3 red = vec3(0.06,0.02,0.02);
-const vec3 green = vec3(0.02,0.06,0.02);
-const vec3 blue = vec3(0.02,0.02,0.06);
-const vec3 yellow = vec3(0.0416,0.0416,0.02);
-
 vec4 permute(vec4 x){
 	return mod(((x*34.0)+1.0)*x, 289.0);
 }
@@ -172,6 +165,12 @@ float julia(vec3 v, vec3 seed) {
 	return 0.0;
 }
 
+const vec3 grey = vec3(0.2);
+const vec3 red = vec3(1.0,0.5,0.5);
+const vec3 green = vec3(0.5,1.0,0.5);
+const vec3 blue = vec3(0.5,0.5,1.0);
+const vec3 yellow = vec3(0.71,0.71,0.5);
+
 vec3 calc_tex(int dim, vec4 ray){
 	ray = fract(ray);
 	vec3 coords, tint;
@@ -199,11 +198,11 @@ vec3 calc_tex(int dim, vec4 ray){
 	}
 
 	if(h == 0.0){
-		return mix(tint, grey, layered_noise(coords, 3, 4));
+		return mix(tint/16.0, grey, layered_noise(coords, 3, 4));
 	}
 
 	vec3 base = texture2D(u_colorscale, vec2(h, 0.5)).rgb;
-	return mix(tint, base, layered_noise(coords, 3, 5));
+	return mix(tint/8.0, base, layered_noise(coords, 4, 5));
 }
 
 const float light_angle = 40.0;
