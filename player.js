@@ -39,6 +39,39 @@ Player.prototype.rotate = function(v,k,angle){
 	//console.log("Rotate",v,k);
 };
 
+function normalize(v){
+	let {x,y,z,w} = v;
+	let len = Math.sqrt(x*x+y*y+z*z+w*w);
+	return {x:x/len, y:y/len, z:z/len, w:w/len};
+}
+
+function orthogonalize(v,k){
+	//subtract the projection of v onto k from v
+	let {x:vx,y:vy,z:vz,w:vw} = v;
+	let {x:kx,y:ky,z:kz,w:kw} = k;
+	let kk = kx*kx+ky*ky+kz*kz+kw*kw;
+	let vk = vx*kx+vy*ky+vz*kz+vw*kw;
+	let scale = vk/kk;
+	return {
+		x: vx - kx*scale,
+		y: vy - ky*scale,
+		z: vz - kz*scale,
+		w: vw - kw*scale
+	};
+}
+
+Player.prototype.renormalize = function(){
+	let {rgt,up,fwd,ana} = this;
+	fwd = normalize(fwd);
+	this.fwd = fwd;
+	rgt = normalize(orthogonalize(rgt,fwd));
+	this.rgt = rgt;
+	up = normalize(orthogonalize(orthogonalize(up,fwd),rgt));
+	this.up = up;
+	ana = normalize(orthogonalize(orthogonalize(orthogonalize(ana,fwd),rgt),up));
+	this.ana = ana;
+};
+
 Player.prototype.translate = function(seconds, map){
 	"use strict";
 	let SIZE = map.size;
@@ -131,6 +164,10 @@ Player.prototype.update = function(controls, map, seconds){
 		if(y !== 0){
 			this.rotate('y', 'z', seconds * y * Math.PI/3);
 		}
+	}
+
+	if(moved){
+		this.renormalize();
 	}
 
 	this.update_speed(controls, seconds);
