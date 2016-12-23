@@ -203,7 +203,7 @@ vec4 calc_tex(int dim, vec4 ray){
 	return mix(tint, base, layered_noise(coords, 3, 5));
 }
 
-vec4 cast_vec(vec4 o, vec4 v, float range){
+vec4 cast_vec(vec4 o, vec4 v, float range, out float distance){
 	// Starting from the player, we find the nearest gridlines
 	// in each dimension. We move to whichever is closer and
 	// check for a wall (inspect). Then we repeat until we've
@@ -227,8 +227,8 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	// while loops are not allowed, so we have to use
 	// a for loop with a fixed max number of iterations
 
+	float inc;
 	int dim, value;
-	float inc, distance;
 
 	float blue = 0.0;
 	float yellow = 0.0;
@@ -299,10 +299,11 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 const float light_angle = 40.0;
 const float light_mult = 5.0;
-vec4 add_light(vec4 fwd, vec4 ray, vec4 color){
+vec4 add_light(vec4 fwd, vec4 ray, vec4 color, float distance){
 	float t = degrees(acos(dot(fwd, ray)/length(ray)));
 	if(t > light_angle){ return color; }
-	float mult = (1.0+light_mult) - light_mult * t / light_angle;
+	float dm = light_mult / distance;
+	float mult = 1.0+ dm * (1.0 - t / light_angle);
 	return min(color * mult, 1.0);
 }	
 
@@ -316,6 +317,9 @@ void main(){
 	vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
-	vec4 color = cast_vec(u_origin, ray, 10.0);
-	gl_FragColor = add_light(u_fwd, ray, color);
+
+	float distance;
+	vec4 color = cast_vec(u_origin, ray, 10.0, distance);
+
+	gl_FragColor = add_light(u_fwd, ray, color, distance);
 }
