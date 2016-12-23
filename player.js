@@ -50,11 +50,16 @@ Player.prototype.translate = function(seconds, map){
 	let dz = fwd.z * inc;
 	let dw = fwd.w * inc;
 
-	let {dist} = cast(this, fwd, map.size*2, map);
-	let xmax = Math.max(Math.abs(fwd.x*dist)-.01,0);
-	let ymax = Math.max(Math.abs(fwd.y*dist)-.01,0);
-	let zmax = Math.max(Math.abs(fwd.z*dist)-.01,0);
-	let wmax = Math.max(Math.abs(fwd.w*dist)-.01,0);
+	let ray = this.speed > 0 ? fwd : {
+		x: -fwd.x, y: -fwd.y,
+		z: -fwd.z, w: -fwd.w,
+	};
+
+	let {dist} = cast(this, ray, map.size*2, map);
+	let xmax = Math.max(Math.abs(fwd.x*dist)-.001,0);
+	let ymax = Math.max(Math.abs(fwd.y*dist)-.001,0);
+	let zmax = Math.max(Math.abs(fwd.z*dist)-.001,0);
+	let wmax = Math.max(Math.abs(fwd.w*dist)-.001,0);
 	
 	if(Math.abs(dx) > xmax){
 		dx = (dx > 0 ? xmax : -xmax);
