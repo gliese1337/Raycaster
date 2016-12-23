@@ -62,7 +62,7 @@ float cast_comp(vec4 v, float o, out int sign, out int m){
 }
 
 const vec3 black = vec3(0.0,0.0,0.0);
-const vec3 grey = vec3(0.1,0.1,0.1);
+const vec3 grey = vec3(0.2,0.2,0.2);
 const vec3 red = vec3(0.06,0.02,0.02);
 const vec3 green = vec3(0.02,0.06,0.02);
 const vec3 blue = vec3(0.02,0.02,0.06);
@@ -151,14 +151,14 @@ float layered_noise(vec3 v, int base, int octaves){
 	return acc / float(octaves);
 }
 
-float julia(vec3 v) {
+float julia(vec3 v, vec3 seed) {
 	const int iter = 10;
 
 	v = v*2.0 - 1.0;
 	for(int i = 0; i < iter; i++){
-		float x = (v.x*v.x - v.y*v.y - v.z*v.z) + u_seed.x;
-		float y = (2.0*v.x*v.y) + u_seed.y;
-		float z = (2.0*v.x*v.z) + u_seed.z;
+		float x = (v.x*v.x - v.y*v.y - v.z*v.z) + seed.x;
+		float y = (2.0*v.x*v.y) + seed.y;
+		float z = (2.0*v.x*v.z) + seed.z;
 
 		if((x * x + y * y + z * z) > 4.0){
 			return float(i) / float(iter);
@@ -175,25 +175,29 @@ float julia(vec3 v) {
 vec3 calc_tex(int dim, vec4 ray){
 	ray = fract(ray);
 	vec3 coords, tint;
+	float h;
 
 	if(dim == 1 || dim == -1){
 		coords = ray.yzw;
 		tint = red;
+		h = julia(coords, u_seed);
 	}
 	else if(dim == 2 || dim == -2){
 		coords = ray.xzw;
 		tint = green;
+		h = julia(coords, u_seed);
 	}
 	else if(dim == 3 || dim == -3){
 		coords = ray.xyw;
 		tint = blue;
+		h = julia(coords, u_seed);
 	}
 	else if(dim == 4 || dim == -4){
 		coords = ray.xyz;
 		tint = yellow;
+		h = julia(coords, u_seed);
 	}
 
-	float h = julia(coords);
 	if(h == 0.0){
 		return mix(tint, grey, layered_noise(coords, 3, 4));
 	}
