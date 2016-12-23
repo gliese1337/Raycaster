@@ -27,7 +27,7 @@ function reset(camera, overlay, player){
 
 	camera.map = map;
 	overlay.len = length;
-	
+
 	player.x += x - Math.floor(player.x);
 	player.y += y - Math.floor(player.y);
 	player.z += z - Math.floor(player.z);
@@ -55,7 +55,7 @@ function main(d, o){
 		controls.width = w;
 		controls.height = h;
 	},false);
-	
+
 	let covered = 0;
 	let rx = 0, ry = 0;
 	let states = controls.states;
@@ -67,6 +67,35 @@ function main(d, o){
 			change = true;
 		}else if(states.zoomout && camera.fov > .01){
 			camera.fov = Math.max(camera.fov - Math.PI*seconds/2, 0);
+			change = true;
+		}
+
+		let cx = Math.floor(player.x);
+		let cy = Math.floor(player.y);
+		let cz = Math.floor(player.z);
+		let cw = Math.floor(player.w);
+
+		let val = map.get(cx,cy,cz,cw);
+
+		if(val === 2){
+			covered = 0;
+			map = reset(camera, overlay, player);
+			change = true;
+		}
+
+		if(val === 1){
+			let nv = states.mark?3:0;
+			map.set(cx,cy,cz,cw,nv);
+			camera.setCell(cx,cy,cz,cw,nv);
+			covered++;
+			change = true;
+		}else if(states.mark && val !== 3){
+			map.set(cx,cy,cz,cw,3);
+			camera.setCell(cx,cy,cz,cw,3);
+			change = true;
+		}else if(states.unmk && val === 3){
+			map.set(cx,cy,cz,cw,0);
+			camera.setCell(cx,cy,cz,cw,0);
 			change = true;
 		}
 
@@ -82,25 +111,8 @@ function main(d, o){
 		let {dist} = camera.castRay(player);
 		overlay.tick(player, covered, seconds);
 		overlay.reticle({x: rx, y: ry, dist: dist});
-			
+
 		if(change){
-			let cx = Math.floor(player.x);
-			let cy = Math.floor(player.y);
-			let cz = Math.floor(player.z);
-			let cw = Math.floor(player.w);
-			
-			let val = map.get(cx,cy,cz,cw);
-			if(val === 1){
-				map.set(cx,cy,cz,cw,0);
-				camera.setCell(cx,cy,cz,cw,0);
-				covered++;
-			}
-
-			if(val === 2){
-				covered = 0;
-				map = reset(camera, overlay, player);
-			}
-
 			camera.render(player);
 		}
 	});

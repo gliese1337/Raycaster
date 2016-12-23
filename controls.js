@@ -3,6 +3,8 @@ function Controls(width,height){
 	this.codes  = {
 		// space, shift, & alt
 		32: 'spc', 16: 'sft',
+		// m & n for marking
+		77: 'm', 78: 'n',
 		// plus & minus
 		109: 'min', 107: 'pls',
 		189: 'min', 187: 'pls',
@@ -28,6 +30,7 @@ function Controls(width,height){
 		188: 'z', 190: 'x', 191: 'y'
 	};
 	this.keys = {
+		m: 0, n: 0,
 		spc: 0, sft: 0,
 		min: 0, pls: 0,
 		lft: 0, rgt: 0,
@@ -37,6 +40,7 @@ function Controls(width,height){
 		lmb: 0, rmb: 0
 	};
 	this.states = {
+		mark: false, unmk: false,
 		fwd: false, bak: false,
 		pup: false, pdn: false, vp: 'z', kp: 'y',
 		ylt: false, yrt: false, vy: 'z', ky: 'x',
@@ -122,6 +126,8 @@ Controls.prototype.onKey = function(val, e){
 	let keys = this.keys;
 	keys[key] = val;
 
+	states.mark = keys.m && !keys.n;
+	states.unmk = !keys.m && keys.n;
 	states.zoomin = !keys.pls && keys.min;
 	states.zoomout = keys.pls && !keys.min;
 

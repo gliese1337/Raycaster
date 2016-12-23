@@ -249,8 +249,9 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 	float inc;
 	float distance = 0.0;
-	float blue = 0.0;
-	float yellow = 0.0;
+	float bluefrac = 0.0;
+	float yellowfrac = 0.0;
+	float redfrac = 0.0;
 
 	for(int i = 0; i < 1000; i++){
 		// Find the next closest cell boundary
@@ -283,9 +284,11 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 
 		value = get_cell(mx, my, mz, mw);
 		if(value == 1){
-			blue += inc;
+			bluefrac += inc;
 		}else if(value == 2){
-			yellow += inc;
+			yellowfrac += inc;
+		}else if(value == 3){
+			redfrac += inc;
 		}
 
 		if(value == 255 || distance >= range){
@@ -296,15 +299,17 @@ vec4 cast_vec(vec4 o, vec4 v, float range){
 	vec4 ray = o + distance *  v;
 	vec4 tex = calc_tex(dim, ray);
 
-	float clear = distance - yellow - blue;
+	float clear = distance - yellowfrac - bluefrac - redfrac;
 
 	clear /= distance;
-	yellow /= distance;
-	blue /= distance;
+	yellowfrac /= distance;
+	bluefrac /= distance;
+	redfrac /= distance;
 
 	tex = tex*clear
-		+ vec4(0.71,0.71,0.0,0.0)*yellow
-		+ vec4(0.0,0.0,1.0,0.0)*blue;
+		+ vec4(0.71,0.71,0.0,0.0)*yellowfrac
+		+ vec4(0.0,0.0,1.0,0.0)*bluefrac
+		+ vec4(1.0,0.0,0.0,0.0)*redfrac;
 
 	tex = add_light(u_fwd, v, vec4(tex.rgb, 1.0), dim > 0 ? dim : -dim, distance);
 
