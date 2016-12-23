@@ -292,9 +292,7 @@ vec4 cast_vec(vec4 o, vec4 v, float range, out float distance){
 		+ vec4(0.71,0.71,0.0,0.0)*yellow
 		+ vec4(0.0,0.0,1.0,0.0)*blue;
 
-	float dr = distance/range;
-	float alpha = 1.0 - dr*dr*dr*dr;
-	return vec4(tex.rgb, alpha);
+	return vec4(tex.rgb, 1.0);
 }
 
 const float light_angle = 40.0;
