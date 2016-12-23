@@ -300,8 +300,8 @@ const float light_mult = 5.0;
 vec4 add_light(vec4 fwd, vec4 ray, vec4 color, float distance){
 	float t = degrees(acos(dot(fwd, ray)/length(ray)));
 	if(t > light_angle){ return color; }
-	float dm = light_mult / distance;
-	float mult = 1.0+ dm * (1.0 - t / light_angle);
+	float dm = light_mult / pow(2.0, distance);
+	float mult = 1.0 + dm * (1.0 - (t / light_angle));
 	return min(color * mult, 1.0);
 }	
 
