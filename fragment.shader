@@ -203,7 +203,25 @@ vec4 calc_tex(int dim, vec4 ray){
 	return mix(tint, base, layered_noise(coords, 3, 5));
 }
 
-vec4 cast_vec(vec4 o, vec4 v, float range, out float distance){
+const float light_angle = 40.0;
+const float light_mult = 5.0;
+vec4 add_light(vec4 fwd, vec4 v, vec4 color, int dim, float distance){
+	float t = degrees(acos(dot(fwd, v)));
+	if(t > light_angle){ return color; }
+
+	float dm = light_mult / pow(2.0, distance);
+
+	float am;
+	if     (dim == 1){ am = abs(v.x); }
+	else if(dim == 2){ am = abs(v.y); }
+	else if(dim == 3){ am = abs(v.z); }
+	else if(dim == 4){ am = abs(v.w); }
+
+	float mult = 1.0 + dm * am * (1.0 - (t / light_angle));
+	return min(color * mult, 1.0);
+}
+
+vec4 cast_vec(vec4 o, vec4 v, float range){
 	// Starting from the player, we find the nearest gridlines
 	// in each dimension. We move to whichever is closer and
 	// check for a wall (inspect). Then we repeat until we've
@@ -227,9 +245,10 @@ vec4 cast_vec(vec4 o, vec4 v, float range, out float distance){
 	// while loops are not allowed, so we have to use
 	// a for loop with a fixed max number of iterations
 
-	float inc;
 	int dim, value;
 
+	float inc;
+	float distance = 0.0;
 	float blue = 0.0;
 	float yellow = 0.0;
 
@@ -274,13 +293,8 @@ vec4 cast_vec(vec4 o, vec4 v, float range, out float distance){
 		}
 	}
 
-	vec4 tex;
-	if(value == 0){
-		tex = vec4(1,1,1,1);
-	}else{
-		vec4 ray = o + distance *  v;
-		tex = calc_tex(dim, ray);
-	}
+	vec4 ray = o + distance *  v;
+	vec4 tex = calc_tex(dim, ray);
 
 	float clear = distance - yellow - blue;
 
@@ -292,18 +306,10 @@ vec4 cast_vec(vec4 o, vec4 v, float range, out float distance){
 		+ vec4(0.71,0.71,0.0,0.0)*yellow
 		+ vec4(0.0,0.0,1.0,0.0)*blue;
 
-	return vec4(tex.rgb, 1.0);
-}
+	tex = add_light(u_fwd, v, vec4(tex.rgb, 1.0), dim > 0 ? dim : -dim, distance);
 
-const float light_angle = 40.0;
-const float light_mult = 5.0;
-vec4 add_light(vec4 fwd, vec4 ray, vec4 color, float distance){
-	float t = degrees(acos(dot(fwd, ray)/length(ray)));
-	if(t > light_angle){ return color; }
-	float dm = light_mult / pow(2.0, distance);
-	float mult = 1.0 + dm * (1.0 - (t / light_angle));
-	return min(color * mult, 1.0);
-}	
+	return tex;
+}
 
 void main(){
 	vec4 cell = floor(u_origin);
@@ -316,8 +322,5 @@ void main(){
 	vec4 zoffset = u_fwd*u_depth;
 	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
 
-	float distance;
-	vec4 color = cast_vec(u_origin, ray, 10.0, distance);
-
-	gl_FragColor = add_light(u_fwd, ray, color, distance);
+	gl_FragColor = cast_vec(u_origin, ray, 10.0);
 }
