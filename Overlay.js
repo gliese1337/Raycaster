@@ -52,8 +52,91 @@ Overlay.prototype.reticle = function({x = 0, y = 0, dist} = {}){
 	}
 };
 
+Overlay.prototype.labeledValue = function(label, val){
+	let {ctx} = this;
+	let lsize = ctx.measureText(label);
+	let vsize = ctx.measureText(val);
+	let height = 15; //from the font size; measureText sady omits the height
+	ctx.fillText(label, 0, 0);
+	ctx.rect(lsize.width + 4, 1, vsize.width + 4, height + 1);
+	ctx.stroke();
+	ctx.fillText(val, lsize.width + 6, 0);
+	return {
+		width: lsize.width + vsize.width + 8,
+		height: height + 2
+	};
+};
+
+Overlay.prototype.position = function(player){
+	let width, height, nh;
+	let wtotal = 0;
+	let {ctx} = this;
+
+	ctx.save();
+	
+	({width, height} = this.labeledValue("Position: x:",Math.floor(player.x)+""));
+	wtotal += width;
+
+	ctx.translate(width+4,0);
+	({width, height:nh} = this.labeledValue("y:",Math.floor(player.y)+""));
+	wtotal += width;
+	height = Math.max(height, nh);
+	
+	ctx.translate(width+4,0);
+	({width, height:nh} = this.labeledValue("z:",Math.floor(player.z)+""));
+	wtotal += width;
+	height = Math.max(height, nh);
+	
+	ctx.translate(width+4,0);
+	({width, height:nh} = this.labeledValue("w:",Math.floor(player.w)+""));
+	wtotal += width;
+	height = Math.max(height, nh);
+	
+	ctx.restore();
+
+	return {
+		width: wtotal + 12,
+		height: height
+	};
+};
+
+Overlay.prototype.orientation = function(player){
+	let width, height, nh;
+	let wtotal = 0;
+	let {fwd} = player;
+	let {ctx} = this;
+	
+	ctx.save();	
+
+	({width, height} = this.labeledValue("Orientation: x:",get_angle(fwd.x)+""));
+	wtotal += width;
+
+	ctx.translate(width+4,0);
+	({width, height:nh} = this.labeledValue("y:",get_angle(fwd.y)+""));
+	wtotal += width;
+	height = Math.max(height, nh);
+	
+	ctx.translate(width+4,0);
+	({width, height:nh} = this.labeledValue("z:",get_angle(fwd.z)+""));
+	wtotal += width;
+	height = Math.max(height, nh);
+	
+	ctx.translate(width+4,0);
+	({width, height:nh} = this.labeledValue("w:",get_angle(fwd.w)+""));
+	wtotal += width;
+	height = Math.max(height, nh);
+	
+	ctx.restore();
+
+	return {
+		width: wtotal + 12,
+		height: height
+	};
+};
+
 Overlay.prototype.tick = function(player, covered, seconds){
 	let {canvas, ctx, fpsw, len} = this;
+	let {height, width} = canvas;
 
 	if(fpsw.length > 20){ fpsw.shift(); }
 	fpsw.push(1/seconds);
@@ -61,23 +144,38 @@ Overlay.prototype.tick = function(player, covered, seconds){
 	let fps = fpsw.reduce(function(a,n){ return a + n; })/fpsw.length;
 	fps = Math.round(fps*10)/10;
 	
-	ctx.clearRect(0,0,canvas.width,canvas.height);
+	ctx.clearRect(0,0,width,height);
 	ctx.font = "10px Calibri";
 	ctx.fillStyle = "#FFFFFF";
 	ctx.fillText("FPS: "+fps+(fps == Math.floor(fps) ? ".0":""), 5, 10);
-	ctx.fillText("Position: x: "+
-				Math.floor(player.x)+
-				" y: "+Math.round(player.y)+
-				" z: "+Math.floor(player.z)+
-				" w: "+Math.floor(player.w),
-				5, canvas.height - 30);
-	ctx.fillText("Orientation: x: "+
-				get_angle(player.fwd.x)+
-				" y: "+get_angle(player.fwd.y)+
-				" z: "+get_angle(player.fwd.z)+
-				" w: "+get_angle(player.fwd.w),
-				5, canvas.height - 20);
-	ctx.fillText("Progress: "+Math.round(100*covered/len)+"%", 5, canvas.height - 10);
+	
+	// Draw panel
+	ctx.beginPath();
+	ctx.moveTo(0, height);
+	ctx.lineTo(0, height - 60);
+	ctx.lineTo(200, height - 60);
+	ctx.arcTo(240, height - 60, 240, height - 20, 40);
+	ctx.lineTo(240, height);
+	ctx.closePath();
+	ctx.fillStyle = "#0f0f0f";
+	ctx.fill();
+
+	ctx.save();
+	
+	ctx.font = "15px Calibri";
+	ctx.textBaseline = "top";
+	ctx.fillStyle = "#02CC02";
+	ctx.strokeStyle = "#02CC02";
+	ctx.lineWidth = 1;
+	ctx.translate(5, height - 58);
+	
+	let lh;
+	({height:lh} = this.position(player));
+	ctx.translate(0, lh+2);
+	({height:lh} = this.orientation(player));
+	ctx.translate(0, lh+2);
+	this.labeledValue("Progress:",Math.round(100*covered/len)+"%");
+	ctx.restore();
 }
 
 module.exports = Overlay;
