@@ -11,12 +11,18 @@ uniform vec4 u_origin;
 uniform vec4 u_rgt;
 uniform vec4 u_up;
 uniform vec4 u_fwd;
-uniform vec4 u_ana;
 
 uniform vec3 u_seed;
 uniform sampler2D u_colorscale;
 
 uniform int u_map[SIZE4];
+
+struct int4 {
+	int x;
+	int y;
+	int z;
+	int w;
+};
 
 int get_cell(int x, int y, int z, int w){
 	x = int(mod(float(x),float(SIZE)));
@@ -43,29 +49,16 @@ int get_cell(int x, int y, int z, int w){
 	return 0;
 }
 
-// Find the distance to the next cell boundary
-// for a particular vector component
-float cast_comp(vec4 v, float o, out int sign, out int m){
-	float delta, fm;
-	if(v.x > 0.0){
-		sign = 1;
-		fm = floor(o);
-		delta = fm + 1.0 - o;
-	}else{
-		sign = -1;
-		fm = ceil(o - 1.0);
-		delta = fm - o;
-	}
+/*
+ * PROCEDURAL TEXTURE CODE
+ */
 
-	m = int(fm);
-	return length(vec4(delta,delta*v.yzw/v.x));
-}
-
+/* Simplex Noise Algorithm */
 vec4 permute(vec4 x){
 	return mod(((x*34.0)+1.0)*x, 289.0);
 }
 
-vec4 taylorInvSqrt(vec4 r){
+vec4 fastInvSqrt(vec4 r){
 	return 1.79284291400159 - 0.85373472095314 * r;
 }
 
@@ -121,16 +114,16 @@ float snoise(vec3 v){
 	vec3 p3 = vec3(a1.zw,h.w);
 
 	//Normalise gradients
-	vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+	vec4 norm = fastInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
 	p0 *= norm.x;
 	p1 *= norm.y;
 	p2 *= norm.z;
 	p3 *= norm.w;
 
 	// Mix final noise value
-	vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-	m = m * m;
-	return 40.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+	vec4 m = max(0.6 - vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
+	m = m*m;
+	return 40.0 * dot(m*m, vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }
 
 float layered_noise(vec3 v, int base, int octaves){
@@ -144,6 +137,7 @@ float layered_noise(vec3 v, int base, int octaves){
 	return acc / float(octaves);
 }
 
+/* 3D modification of Julia fractal */
 float julia(vec3 v, vec3 seed) {
 	const int iter = 10;
 
@@ -165,6 +159,7 @@ float julia(vec3 v, vec3 seed) {
 	return 0.0;
 }
 
+/* Main Texture Calculation */
 const vec3 grey = vec3(0.2);
 const vec3 red = vec3(1.0,0.5,0.5);
 const vec3 green = vec3(0.5,1.0,0.5);
@@ -205,14 +200,17 @@ vec3 calc_tex(int dim, vec4 ray){
 	return mix(tint/8.0, base, layered_noise(coords, 4, 5));
 }
 
+/* Flashlight Algorithm */
 const float light_angle = 40.0;
 const float light_mult = 5.0;
 vec3 add_light(vec4 fwd, vec4 v, vec3 color, int dim, float distance){
 	float t = degrees(acos(dot(fwd, v)));
 	if(t > light_angle){ return color; }
 
+	// Dim based on distance
 	float dm = light_mult / pow(2.0, distance);
 
+	// Dim based on incidence angle
 	float am;
 	if     (dim == 1 || dim == -1){ am = abs(v.x); }
 	else if(dim == 2 || dim == -2){ am = abs(v.y); }
@@ -223,11 +221,33 @@ vec3 add_light(vec4 fwd, vec4 v, vec3 color, int dim, float distance){
 	return min(color * mult, 1.0);
 }
 
+/*
+ * RAYCASTING
+ */
+
+// Find the distance to the next cell boundary
+// for a particular vector component
+float cast_comp(vec4 v, float o, out int sign, out int m){
+	float delta, fm;
+	if(v.x > 0.0){
+		sign = 1;
+		fm = floor(o);
+		delta = fm + 1.0 - o;
+	}else{
+		sign = -1;
+		fm = ceil(o - 1.0);
+		delta = fm - o;
+	}
+
+	m = int(fm);
+	return length(vec4(delta,delta*v.yzw/v.x));
+}
+
+// Starting from the player, we find the nearest gridlines
+// in each dimension. We move to whichever is closer and
+// check for a wall. Then we repeat until we've traced the
+// entire length of the ray.
 vec3 cast_vec(vec4 o, vec4 v, float range){
-	// Starting from the player, we find the nearest gridlines
-	// in each dimension. We move to whichever is closer and
-	// check for a wall (inspect). Then we repeat until we've
-	// traced the entire length of the ray.
 
 	v = normalize(v);
 
@@ -237,54 +257,58 @@ vec3 cast_vec(vec4 o, vec4 v, float range){
 	// to that dimension.
 	vec4 deltas = abs(vec4(1.0/v.x, 1.0/v.y, 1.0/v.z, 1.0/v.w));
 
-	int sx, sy, sz, sw;
-	int mx, my, mz, mw;
-	float xdist = cast_comp(v.xyzw, o.x, sx, mx);
-	float ydist = cast_comp(v.yxzw, o.y, sy, my);
-	float zdist = cast_comp(v.zxyw, o.z, sz, mz);
-	float wdist = cast_comp(v.wxyz, o.w, sw, mw);
+	// Get the initial distances from the starting
+	// point to the next cell boundaries.
+	int4 s, m;
+	vec4 dists = vec4(
+		cast_comp(v.xyzw, o.x, s.x, m.x),
+		cast_comp(v.yxzw, o.y, s.y, m.y),
+		cast_comp(v.zxyw, o.z, s.z, m.z),
+		cast_comp(v.wxyz, o.w, s.w, m.w)
+	);
 
-	// while loops are not allowed, so we have to use
-	// a for loop with a fixed max number of iterations
-
-	int dim, value;
-
-	float inc;
+	// Keep track of total distance,
+	// and distance in colored cells.
 	float distance = 0.0;
 	float bluefrac = 0.0;
 	float yellowfrac = 0.0;
 	float redfrac = 0.0;
 
+	int dim, value;
+
+	// while loops are not allowed, so we have to use
+	// a for loop with a fixed max number of iterations
 	for(int i = 0; i < 1000; i++){
 		// Find the next closest cell boundary
 		// and increment distances appropriately
-		if(xdist <= ydist && xdist <= zdist && xdist <= wdist){
-			dim = 1*sx;
-			mx += sx;
-			inc = xdist - distance;
-			distance = xdist;
-			xdist += deltas.x;
-		}else if(ydist <= xdist && ydist <= zdist && ydist <= wdist){
-			dim = 2*sy;
-			my += sy;
-			inc = ydist - distance;
-			distance = ydist;
-			ydist += deltas.y;
-		}else if(zdist <= xdist && zdist <= ydist && zdist <= wdist){
-			dim = 3*sz;
-			mz += sz;
-			inc = zdist - distance;
-			distance = zdist;
-			zdist += deltas.z;
+		float inc;
+		if(dists.x < dists.y && dists.x < dists.z && dists.x < dists.w){
+			dim = 1*s.x;
+			m.x += s.x;
+			inc = dists.x - distance;
+			distance = dists.x;
+			dists.x += deltas.x;
+		}else if(dists.y < dists.z && dists.y < dists.w){
+			dim = 2*s.y;
+			m.y += s.y;
+			inc = dists.y - distance;
+			distance = dists.y;
+			dists.y += deltas.y;
+		}else if(dists.z < dists.w){
+			dim = 3*s.z;
+			m.z += s.z;
+			inc = dists.z - distance;
+			distance = dists.z;
+			dists.z += deltas.z;
 		}else{
-			dim = 4*sw;
-			mw += sw;
-			inc = wdist - distance;
-			distance = wdist;
-			wdist += deltas.w;
+			dim = 4*s.w;
+			m.w += s.w;
+			inc = dists.w - distance;
+			distance = dists.w;
+			dists.w += deltas.w;
 		}
 
-		value = get_cell(mx, my, mz, mw);
+		value = get_cell(m.x, m.y, m.z, m.w);
 		if(value == 1){
 			bluefrac += inc;
 		}else if(value == 2){

@@ -82,7 +82,6 @@ function Camera(canvas, map, hfov){
 			rgt: gl.getUniformLocation(program, "u_rgt"),
 			up: gl.getUniformLocation(program, "u_up"),
 			fwd: gl.getUniformLocation(program, "u_fwd"),
-			ana: gl.getUniformLocation(program, "u_ana"),
 			seed: gl.getUniformLocation(program, "u_seed")
 		};
 
@@ -152,12 +151,11 @@ Camera.prototype.setCell = function(x,y,z,w,val){
 
 Camera.prototype.render = function(player){
 	let gl = this.gl;
-	let {origin, rgt, up, fwd, ana} = this.locs;
+	let {origin, rgt, up, fwd} = this.locs;
 	gl.uniform4f(origin, player.x, player.y, player.z, player.w);
 	gl.uniform4f(rgt, player.rgt.x, player.rgt.y, player.rgt.z, player.rgt.w);
 	gl.uniform4f(up, player.up.x, player.up.y, player.up.z, player.up.w);
 	gl.uniform4f(fwd, player.fwd.x, player.fwd.y, player.fwd.z, player.fwd.w);
-	gl.uniform4f(ana, player.ana.x, player.ana.y, player.ana.z, player.ana.w);
 	gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
 
