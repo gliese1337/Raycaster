@@ -4,6 +4,19 @@ function normalize(v){
 	return { x: v.x/mag, y: v.y/mag, z: v.z/mag, w: v.w/mag };
 }
 
+function get_cell(map, x, y, z, w){
+	"use strict";
+	x %= map.size;
+	y %= map.size;
+	z %= map.size;
+	w %= map.size;
+	if(x < 0){ x += map.size; }
+	if(y < 0){ y += map.size; }
+	if(z < 0){ z += map.size; }
+	if(w < 0){ w += map.size; }
+	return map.grid[w][z][y][x];
+}
+
 // Find the distance to the next cell boundary
 // for a particular vector component
 function cast_comp(x, y, z, w, o){
@@ -30,26 +43,12 @@ function cast_comp(x, y, z, w, o){
 	};
 }
 
-function get_cell(map, x, y, z, w){
-	"use strict";
-	x %= map.size;
-	y %= map.size;
-	z %= map.size;
-	w %= map.size;
-	if(x < 0){ x += map.size; }
-	if(y < 0){ y += map.size; }
-	if(z < 0){ z += map.size; }
-	if(w < 0){ w += map.size; }
-	return map.grid[w][z][y][x];
-}
-
+// Starting from the player, we find the nearest gridlines
+// in each dimension. We move to whichever is closer and
+// check for a wall (inspect). Then we repeat until we've
+// traced the entire length of the ray.
 function cast(o, v, range, map) {
 	"use strict";
-
-	// Starting from the player, we find the nearest gridlines
-	// in each dimension. We move to whichever is closer and
-	// check for a wall (inspect). Then we repeat until we've
-	// traced the entire length of the ray.
 
 	v = normalize(v);
 		
@@ -57,12 +56,14 @@ function cast(o, v, range, map) {
 	// gives the distance you have to move along that
 	// vector to hit a cell boundary perpendicular
 	// to that dimension.
-
 	let xdelta = Math.abs(1/v.x);
 	let ydelta = Math.abs(1/v.y);
 	let zdelta = Math.abs(1/v.z);
 	let wdelta = Math.abs(1/v.w);
 
+	
+	// Get the initial distances from the starting
+	// point to the next cell boundaries.
 	let {d: xdist, s: sx, m: mx} =
 		cast_comp(v.x, v.y, v.z, v.w, o.x);
 	
@@ -79,17 +80,17 @@ function cast(o, v, range, map) {
 	for(let i = 0; i < 1000; i++) {
 		// Find the next closest cell boundary
 		// and increment distances appropriately
-		if(xdist <= ydist && xdist <= zdist && xdist <= wdist){		
+		if(xdist < ydist && xdist < zdist && xdist < wdist){		
 			dim = 1*sx;
 			mx += sx;
 			distance = xdist;
 			xdist += xdelta;
-		}else if(ydist <= xdist && ydist <= zdist && ydist <= wdist){
+		}else if(ydist < zdist && ydist < wdist){
 			dim = 2*sy;
 			my += sy;
 			distance = ydist;
 			ydist += ydelta;
-		}else if(zdist <= xdist && zdist <= ydist && zdist <= wdist){
+		}else if(zdist < wdist){
 			dim = 3*sz;
 			mz += sz;
 			distance = zdist;
