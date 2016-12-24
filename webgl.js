@@ -7,45 +7,77 @@ const GameLoop = require("./GameLoop.js");
 const Maze = require("./Maze.js");
 const GL_Utils = require("./webgl-utils.js");
 
-function plan_route(map){
+function get_route(map){
 	let path = map.getLongestPath(),
 		start = path.shift(),
 		end = path.pop();
 
+	return {start: start, path: path, end: end};
+}
+
+function mark_route(camera, map, route, skip){
+	let {start, path, end} = route;
+	let mod = skip + 1;
+
 	map.set(start.x,start.y,start.z,start.w,0);
 	map.set(end.x,end.y,end.z,end.w,2);
-	path.forEach((cell) => {
-		map.set(cell.x,cell.y,cell.z,cell.w,1);
+	if(camera){
+		camera.setCell(start.x,start.y,start.z,start.w,0);
+		camera.setCell(end.x,end.y,end.z,end.w,2);
+	}
+	path.forEach(({x,y,z,w},i) => {
+		if((i+1) % mod == 0){
+			map.set(x,y,z,w,1);
+			if(camera){ camera.setCell(x,y,z,w,1); }
+		}else{
+			map.set(x,y,z,w,4);
+			if(camera){ camera.setCell(x,y,z,w,0); }
+		}
 	});
-
-	return {start: start, length: path.length+1};
 }
 
 function reset(camera, overlay, player){
 	let map = new Maze(SIZE);
-	let {start: {x, y, z, w}, length} = plan_route(map);
+	let route = get_route(map);
+	let {start: {x, y, z, w}, path} = route;
+
+	mark_route(map, route);
 
 	camera.map = map;
-	overlay.len = length;
+	overlay.len = path.length+1;
+	overlay.progress = 0;
 
 	player.x += x - Math.floor(player.x);
 	player.y += y - Math.floor(player.y);
 	player.z += z - Math.floor(player.z);
 	player.w += w - Math.floor(player.w);
 
-	return map;
+	return {map:map, route:route};
+}
+
+function reverse(camera, map, route, skip, overlay){
+	[route.end, route.start] = [route.start, route.end];
+	route.path.reverse();
+
+	mark_route(camera, map, route, skip);
+	overlay.progress = 0;
 }
 
 function main(d, o){
 	"use strict";
 
 	let map = new Maze(SIZE);
-	let {start: {x, y, z, w}, length} = plan_route(map);
+	let route = get_route(map);
+	mark_route(null, map, route, 0);
+
+	let rounds = 0;
+
+	let {start: {x, y, z, w}, path} = route;
 	let player = new Player(x+.5, y+.5, z+.5, w+.5);
 	let controls = new Controls(d.width, d.height);
 	let camera = new Camera(d, map, Math.PI / 1.5);
 
-	let overlay = new Overlay(o, length);
+	let overlay = new Overlay(o, path.length+1);
 
 	window.addEventListener('resize',() => {
 		let w = window.innerWidth;
@@ -57,64 +89,81 @@ function main(d, o){
 	},false);
 
 	let covered = 0;
-	let rx = 0, ry = 0;
 	let states = controls.states;
-	let loop = new GameLoop((seconds) => {
-		let change = player.update(states, map, seconds);
 
+	let update_zoom = () => {
 		if(states.zoomin && camera.fov < Math.PI){
 			camera.fov = Math.min(camera.fov + Math.PI*seconds/2, Math.PI);
-			change = true;
-		}else if(states.zoomout && camera.fov > .01){
-			camera.fov = Math.max(camera.fov - Math.PI*seconds/2, 0);
-			change = true;
+			return true;
 		}
+		if(states.zoomout && camera.fov > .01){
+			camera.fov = Math.max(camera.fov - Math.PI*seconds/2, 0);
+			return true;
+		}
+		return false;
+	};
 
+	let update_cell = () => {
 		let cx = Math.floor(player.x);
 		let cy = Math.floor(player.y);
 		let cz = Math.floor(player.z);
 		let cw = Math.floor(player.w);
 
 		let val = map.get(cx,cy,cz,cw);
-
-		if(val === 2){
-			covered = 0;
-			map = reset(camera, overlay, player);
-			change = true;
-		}
-
-		if(val === 1){
-			let nv = states.mark?3:0;
-			map.set(cx,cy,cz,cw,nv);
-			camera.setCell(cx,cy,cz,cw,nv);
-			covered++;
-			change = true;
+		if(cx !== x || cy !== y || cz !== z || cw !== w){
+			//Enter cell
+			[x,y,z,w] = [cx,cy,cz,cw];
+			if(val === 2){
+				if(rounds < path.length){
+					console.log("finished");
+					reverse(camera, map, route, ++rounds, overlay);
+				}else{
+					rounds = 0;
+					({map, route} = reset(camera, overlay, player));
+				}
+				return true;
+			}else if(val === 1 || val == 4){
+				let nv = states.mark?3:0;
+				map.set(x,y,z,w,nv);
+				camera.setCell(x,y,z,w,nv);
+				overlay.progress++;
+				return true;
+			}else if(!states.mark && val === 3){
+				map.set(x,y,z,w,0);
+				camera.setCell(x,y,z,w,0);
+				return true;
+			}
 		}else if(states.mark && val !== 3){
-			map.set(cx,cy,cz,cw,3);
-			camera.setCell(cx,cy,cz,cw,3);
-			change = true;
-		}else if(states.unmk && val === 3){
-			map.set(cx,cy,cz,cw,0);
-			camera.setCell(cx,cy,cz,cw,0);
-			change = true;
+			map.set(x,y,z,w,3);
+			camera.setCell(x,y,z,w,3);
+			return true;
 		}
+		return false;
+	};
 
+	let rx = 0, ry = 0;
+	let update_overlay = (seconds) => {
 		if(states.mouse){
 			({mouseX: rx, mouseY: ry} = states);
 		}else{
-			if(rx !== 0){ rx /= 2;}
+			if(rx !== 0){ rx /= 1.5;}
 			if(Math.abs(rx) < .01){ rx = 0; }
-			if(ry !== 0){ ry /= 2;}
+			if(ry !== 0){ ry /= 1.5;}
 			if(Math.abs(ry) < .01){ ry = 0; }
 		}
 
 		let {dist} = camera.castRay(player);
 		overlay.tick(player, covered, seconds);
 		overlay.reticle({x: rx, y: ry, dist: dist});
+	};
 
-		if(change){
-			camera.render(player);
-		}
+	let loop = new GameLoop(seconds => {
+		let change = player.update(states, map, seconds);
+		change = update_zoom() || change;
+		change = update_cell() || change;
+
+		if(change){ camera.render(player); }
+		update_overlay(seconds);
 	});
 
 	camera.onready(() => {

@@ -3,6 +3,7 @@ function Overlay(canvas, len){
 	this.ctx = canvas.getContext('2d');
 	this.fpsw = [];
 	this.len = len;
+	this.progress = 0;
 }
 
 Overlay.prototype.resize = function(w,h){
@@ -136,7 +137,7 @@ Overlay.prototype.orientation = function(player){
 };
 
 Overlay.prototype.tick = function(player, covered, seconds){
-	let {canvas, ctx, fpsw, len} = this;
+	let {canvas, ctx, fpsw, len, progress} = this;
 	let {height, width} = canvas;
 
 	if(fpsw.length > 20){ fpsw.shift(); }
@@ -175,7 +176,7 @@ Overlay.prototype.tick = function(player, covered, seconds){
 	ctx.translate(0, lh+2);
 	({height:lh} = this.orientation(player));
 	ctx.translate(0, lh+2);
-	this.labeledValue("Progress:",Math.round(100*covered/len)+"%");
+	this.labeledValue("Progress:",Math.round(100*progress/len)+"%");
 	ctx.restore();
 }
 

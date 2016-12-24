@@ -1,10 +1,10 @@
 function Controls(width,height){
 	"use strict";
 	this.codes  = {
+		// m for marking
+		77: 'm',
 		// space, shift, & alt
 		32: 'spc', 16: 'sft',
-		// m & n for marking
-		77: 'm', 78: 'n',
 		// plus & minus
 		109: 'min', 107: 'pls',
 		189: 'min', 187: 'pls',
@@ -30,7 +30,7 @@ function Controls(width,height){
 		188: 'z', 190: 'x', 191: 'y'
 	};
 	this.keys = {
-		m: 0, n: 0,
+		m: 0,
 		spc: 0, sft: 0,
 		min: 0, pls: 0,
 		lft: 0, rgt: 0,
@@ -126,8 +126,7 @@ Controls.prototype.onKey = function(val, e){
 	let keys = this.keys;
 	keys[key] = val;
 
-	states.mark = keys.m && !keys.n;
-	states.unmk = !keys.m && keys.n;
+	states.mark = !!keys.m;
 	states.zoomin = !keys.pls && keys.min;
 	states.zoomout = keys.pls && !keys.min;
 
