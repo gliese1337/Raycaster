@@ -193,11 +193,11 @@ vec3 calc_tex(int dim, vec4 ray){
 	}
 
 	if(h == 0.0){
-		return mix(tint/16.0, grey, layered_noise(coords, 3, 4));
+		return mix(tint/16.0, grey, layered_noise(coords, 3, 3));
 	}
 
 	vec3 base = texture2D(u_colorscale, vec2(h, 0.5)).rgb;
-	return mix(tint/8.0, base, layered_noise(coords, 4, 5));
+	return mix(tint/8.0, base, layered_noise(coords, 5, 3));
 }
 
 /* Flashlight Algorithm */
@@ -350,8 +350,7 @@ void main(){
 	}
 
 	vec2 coords = gl_FragCoord.xy - (u_resolution / 2.0);
-	vec4 zoffset = u_fwd*u_depth;
-	vec4 ray = zoffset + u_rgt*coords.x + u_up*coords.y;
+	vec4 ray = u_fwd*u_depth + u_rgt*coords.x + u_up*coords.y;
 
 	vec3 color = cast_vec(u_origin, ray, 10.0);
 	gl_FragColor = vec4(color, 1.0);
