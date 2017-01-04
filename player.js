@@ -46,18 +46,15 @@ function normalize(v){
 }
 
 function orthogonalize(v,k){
-	//subtract the projection of v onto k from v
-	let {x:vx,y:vy,z:vz,w:vw} = v;
-	let {x:kx,y:ky,z:kz,w:kw} = k;
-	let kk = kx*kx+ky*ky+kz*kz+kw*kw;
-	let vk = vx*kx+vy*ky+vz*kz+vw*kw;
-	let scale = vk/kk;
-	return {
-		x: vx - kx*scale,
-		y: vy - ky*scale,
-		z: vz - kz*scale,
-		w: vw - kw*scale
-	};
+    let {x:vx,y:vy,z:vz,w:vw} = v;
+    let {x:kx,y:ky,z:kz,w:kw} = k;
+    let vk = vx*kx+vy*ky+vz*kz+vw*kw;
+    return {
+        x: vx - kx*vk,
+        y: vy - ky*vk,
+        z: vz - kz*vk,
+        w: vw - kw*vk
+    };
 }
 
 Player.prototype.renormalize = function(){
